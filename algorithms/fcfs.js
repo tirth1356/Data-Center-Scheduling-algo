@@ -34,48 +34,43 @@ function fcfs(jobs, config) {
       servers: snapshotServers(servers),
     });
 
-    let placed = false;
-    for (const server of servers) {
-      if (job.cpu > serverCpu || job.memory > serverMemory) {
-        trace.push({
-          action: 'skip_server',
-          message: `Server ${server.id}: insufficient capacity for job ${job.id}`,
-          jobId: job.id,
-          serverId: server.id,
-          highlightJobId: job.id,
-          servers: snapshotServers(servers),
-        });
-        continue;
-      }
-
-      const assignment = placeOnServer(server, job, serverCpu, serverMemory);
-      assignments.push(assignment);
-
-      trace.push({
-        action: 'place',
-        message: `Place job ${job.id} on server ${server.id} [${assignment.startTime}, ${assignment.endTime})`,
-        jobId: job.id,
-        serverId: server.id,
-        startTime: assignment.startTime,
-        endTime: assignment.endTime,
-        highlightJobId: job.id,
-        servers: snapshotServers(servers),
-      });
-
-      placed = true;
-      break;
-    }
-
-    if (!placed) {
+    if (job.cpu > serverCpu || job.memory > serverMemory) {
       rejected += 1;
       trace.push({
         action: 'reject',
-        message: `No server can run job ${job.id}`,
+        message: `Job ${job.id} exceeds per-node capacity (needs CPU ${job.cpu}, RAM ${job.memory}GB)`,
         jobId: job.id,
         highlightJobId: job.id,
         servers: snapshotServers(servers),
       });
+      continue;
     }
+
+    // Assign to first server with room at arrival time, or earliest freeing server
+    let targetServer = null;
+    for (const server of servers) {
+      if (server.freeTime <= job.arrivalTime) {
+        targetServer = server;
+        break;
+      }
+    }
+    if (!targetServer) {
+      targetServer = servers.reduce((earliest, s) => s.freeTime < earliest.freeTime ? s : earliest, servers[0]);
+    }
+
+    const assignment = placeOnServer(targetServer, job, serverCpu, serverMemory);
+    assignments.push(assignment);
+
+    trace.push({
+      action: 'place',
+      message: `Place job ${job.id} on server ${targetServer.id} [${assignment.startTime}, ${assignment.endTime})`,
+      jobId: job.id,
+      serverId: targetServer.id,
+      startTime: assignment.startTime,
+      endTime: assignment.endTime,
+      highlightJobId: job.id,
+      servers: snapshotServers(servers),
+    });
   }
 
   const metrics = computeMetrics(assignments, sorted, servers, config, rejected);
