@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -26,10 +26,6 @@
           <h1>Data Center Workload Optimizer</h1>
           <p class="subtitle">Design & Analysis of Algorithms — Multi-Server Job Scheduling & Live Complexity Suite</p>
         </div>
-      </div>
-      <div class="header-meta">
-        <span class="status-pill live"><span class="dot"></span> DAA Simulation Engine</span>
-        <span class="status-pill novelty">⚡ Power & Carbon Model Enabled</span>
       </div>
     </div>
   </header>
@@ -189,11 +185,9 @@
       <!-- Scrubber & Controls -->
       <div class="player-toolbar">
         <div class="btn-group">
-          <button type="button" id="btn-step-start" class="btn player-btn" title="Jump to start" disabled>⏮</button>
-          <button type="button" id="btn-step-back" class="btn player-btn" title="Step back" disabled>◀</button>
+          <button type="button" id="btn-step-start" class="btn player-btn" title="Restart from beginning" disabled>⏮</button>
           <button type="button" id="btn-play" class="btn player-btn play-btn" title="Play animation" disabled>▶ Play</button>
           <button type="button" id="btn-pause" class="btn player-btn" title="Pause" disabled>⏸ Pause</button>
-          <button type="button" id="btn-step-fwd" class="btn player-btn" title="Step forward" disabled>▶</button>
           <button type="button" id="btn-step-end" class="btn player-btn" title="Jump to end" disabled>⏭</button>
         </div>
 
@@ -288,36 +282,6 @@
       </div>
     </section>
 
-    <!-- Job Pool Table (Editable) -->
-    <section class="panel glass-card" aria-labelledby="jobs-heading">
-      <div class="panel-header">
-        <div>
-          <h2 id="jobs-heading">Generated Job Pool</h2>
-          <p class="hint">Directly edit any cell in the table below to tweak parameters; manual edits persist into subsequent algorithmic runs.</p>
-        </div>
-        <div class="job-table-actions">
-          <span id="job-count-badge" class="badge">0 jobs</span>
-        </div>
-      </div>
-      <div class="table-wrap jobs-scroll">
-        <table id="jobs-table">
-          <thead>
-            <tr>
-              <th>Job ID</th>
-              <th>Arrival (t)</th>
-              <th>CPU Req (cores)</th>
-              <th>Memory Req (GB)</th>
-              <th>Duration (units)</th>
-              <th>Deadline (t)</th>
-              <th>Priority (1–10)</th>
-            </tr>
-          </thead>
-          <tbody id="jobs-tbody">
-            <tr class="empty-row"><td colspan="7">Generate jobs using the controls above to populate the table.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
 
     <!-- Complexity Analysis & Live Benchmark Panel (Compact Chart) -->
     <section class="panel glass-card" aria-labelledby="complexity-heading">
@@ -363,7 +327,7 @@
             <span>Solid lines = Measured wall-clock time (hrtime ms)</span>
             <span>Dashed lines = Asymptotic theoretical curve scaled to first point</span>
           </div>
-          <canvas id="benchmark-chart" height="130"></canvas>
+          <canvas id="benchmark-chart"></canvas>
         </div>
       </div>
     </section>

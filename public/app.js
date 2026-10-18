@@ -204,34 +204,39 @@ function setStatus(text, isError = false) {
 }
 
 function renderJobsTable(list) {
-  jobsTbody.innerHTML = '';
-  jobCountBadge.textContent = `${list.length} jobs`;
-  if (!list.length) {
-    jobsTbody.innerHTML = '<tr class="empty-row"><td colspan="7">No jobs generated.</td></tr>';
-    renderJobHud([]);
-    return;
-  }
-  for (const job of list) {
-    const tr = document.createElement('tr');
-    tr.dataset.jobId = String(job.id);
-    for (const field of ['id', 'arrivalTime', 'cpu', 'memory', 'duration', 'deadline', 'priority']) {
-      const td = document.createElement('td');
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.className = 'cell-input';
-      input.dataset.field = field;
-      input.value = job[field];
-      if (field === 'id') input.readOnly = true;
-      td.appendChild(input);
-      tr.appendChild(td);
+  if (jobsTbody) {
+    jobsTbody.innerHTML = '';
+    if (jobCountBadge) jobCountBadge.textContent = `${list.length} jobs`;
+    if (!list.length) {
+      jobsTbody.innerHTML = '<tr class="empty-row"><td colspan="7">No jobs generated.</td></tr>';
+      renderJobHud([]);
+      return;
     }
-    jobsTbody.appendChild(tr);
+    for (const job of list) {
+      const tr = document.createElement('tr');
+      tr.dataset.jobId = String(job.id);
+      for (const field of ['id', 'arrivalTime', 'cpu', 'memory', 'duration', 'deadline', 'priority']) {
+        const td = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'cell-input';
+        input.dataset.field = field;
+        input.value = job[field];
+        if (field === 'id') input.readOnly = true;
+        td.appendChild(input);
+        tr.appendChild(td);
+      }
+      jobsTbody.appendChild(tr);
+    }
   }
   renderJobHud(list);
 }
 
 function readJobsFromTable() {
-  return [...jobsTbody.querySelectorAll('tr[data-job-id]')].map((tr) => {
+  if (!jobsTbody) return jobs || [];
+  const rows = [...jobsTbody.querySelectorAll('tr[data-job-id]')];
+  if (!rows.length) return jobs || [];
+  return rows.map((tr) => {
     const get = (field) => Number(tr.querySelector(`input[data-field="${field}"]`).value);
     return {
       id: get('id'),
@@ -366,13 +371,13 @@ function stopPlayback() {
 }
 
 function setAnimControlsEnabled(on) {
-  btnPlay.disabled = !on;
-  btnPause.disabled = !on;
-  btnStepStart.disabled = !on;
-  btnStepBack.disabled = !on;
-  btnStepFwd.disabled = !on;
-  btnStepEnd.disabled = !on;
-  traceScrubber.disabled = !on;
+  if (btnPlay) btnPlay.disabled = !on;
+  if (btnPause) btnPause.disabled = !on;
+  if (btnStepStart) btnStepStart.disabled = !on;
+  if (btnStepBack) btnStepBack.disabled = !on;
+  if (btnStepFwd) btnStepFwd.disabled = !on;
+  if (btnStepEnd) btnStepEnd.disabled = !on;
+  if (traceScrubber) traceScrubber.disabled = !on;
 }
 
 function loadTrace(result) {
@@ -418,6 +423,7 @@ function renderStep() {
 }
 
 function highlightJobRow(jobId) {
+  if (!jobsTbody) return;
   jobsTbody.querySelectorAll('tr[data-job-id]').forEach((tr) => {
     tr.classList.toggle('highlight', jobId != null && tr.dataset.jobId === String(jobId));
   });
@@ -677,17 +683,21 @@ btnStepEnd.addEventListener('click', () => {
   renderStep();
 });
 
-btnStepFwd.addEventListener('click', () => {
-  stopPlayback();
-  stepIndex += 1;
-  renderStep();
-});
+if (btnStepFwd) {
+  btnStepFwd.addEventListener('click', () => {
+    stopPlayback();
+    stepIndex += 1;
+    renderStep();
+  });
+}
 
-btnStepBack.addEventListener('click', () => {
-  stopPlayback();
-  stepIndex -= 1;
-  renderStep();
-});
+if (btnStepBack) {
+  btnStepBack.addEventListener('click', () => {
+    stopPlayback();
+    stepIndex -= 1;
+    renderStep();
+  });
+}
 
 traceScrubber.addEventListener('input', () => {
   stopPlayback();
