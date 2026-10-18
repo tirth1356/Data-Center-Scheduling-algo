@@ -1,3 +1,30 @@
+/**
+ * ============================================================================
+ * ALGORITHM 2: GREEDY SHORTEST-JOB-FIRST (SJF) SCHEDULER
+ * ============================================================================
+ * 
+ * DAA PARADIGM: Greedy Strategy
+ * 
+ * TIME COMPLEXITY:  O(n log n + n * s)
+ *   - Sorting n jobs by duration: O(n log n)
+ *   - Placing n jobs across s servers: O(n * s)
+ * 
+ * SPACE COMPLEXITY: O(n + s)
+ *   - Job assignments and server timeline states.
+ * 
+ * ----------------------------------------------------------------------------
+ * HOW TO EXPLAIN TO YOUR TEACHER (VIVA NOTES):
+ * ----------------------------------------------------------------------------
+ * 1. "SJF is a greedy algorithm where the greedy choice criterion is job duration."
+ * 2. "Why does SJF minimize average waiting time?"
+ *     "If jobs have durations d_1 <= d_2 <= ... <= d_n, earlier jobs appear in the
+ *      waiting time of all subsequent jobs. By placing smaller durations first,
+ *      we minimize the cumulative sum of waiting times: sum_{i=1}^n (n - i) * d_i."
+ * 3. "For multi-server execution, we iterate through the sorted list and place each
+ *      job on whichever server becomes free earliest."
+ * ============================================================================
+ */
+
 const {
   createServers,
   snapshotServers,
@@ -5,71 +32,104 @@ const {
   computeMetrics,
 } = require('./metrics');
 
-/** Greedy shortest-job-first: sort by duration, assign to server that frees earliest. */
 function sjf(jobs, config) {
   const { numServers, serverCpu, serverMemory } = config;
-  const sorted = [...jobs].sort(
+
+  // STEP 1: Greedy Sort by ascending duration (shorter jobs first)
+  const sortedJobs = [...jobs].sort(
     (a, b) => a.duration - b.duration || a.arrivalTime - b.arrivalTime || a.id - b.id
   );
+
+  // STEP 2: Initialize cluster servers
   const servers = createServers(numServers);
-  const trace = [];
   const assignments = [];
-  let rejected = 0;
+  const trace = [];
+  let rejectedCount = 0;
 
   trace.push({
     action: 'init',
-    message: `SJF: ${sorted.length} jobs by increasing duration`,
+    message: `Greedy SJF initialized: sorted ${sortedJobs.length} jobs by ascending execution duration.`,
     servers: snapshotServers(servers),
     highlightJobId: null,
   });
 
-  for (const job of sorted) {
+  // STEP 3: Greedy allocation loop
+  for (const currentJob of sortedJobs) {
     trace.push({
       action: 'consider',
-      message: `Consider job ${job.id} (duration ${job.duration})`,
-      jobId: job.id,
-      highlightJobId: job.id,
+      message: `Greedy Choice: Pick Job ${currentJob.id} (Shortest remaining duration: ${currentJob.duration} units)`,
+      jobId: currentJob.id,
+      highlightJobId: currentJob.id,
       servers: snapshotServers(servers),
     });
 
-    let best = null;
+    // STEP 3A: Find the server that frees up earliest
+    let bestServer = null;
+    let earliestStartTime = Infinity;
+
     for (const server of servers) {
-      if (job.cpu > serverCpu || job.memory > serverMemory) continue;
-      const startTime = Math.max(job.arrivalTime, server.freeTime);
-      if (!best || startTime < best.startTime || (startTime === best.startTime && server.id < best.server.id)) {
-        best = { server, startTime };
+      // Check if job fits this server's CPU and Memory limits
+      if (currentJob.cpu > serverCpu || currentJob.memory > serverMemory) {
+        continue;
+      }
+
+      // The job can start when both the job has arrived AND the server is free
+      const possibleStartTime = Math.max(currentJob.arrivalTime, server.freeTime);
+
+      if (possibleStartTime < earliestStartTime) {
+        earliestStartTime = possibleStartTime;
+        bestServer = server;
+      } else if (possibleStartTime === earliestStartTime && (!bestServer || server.id < bestServer.id)) {
+        bestServer = server;
       }
     }
 
-    if (!best) {
-      rejected += 1;
+    // STEP 3B: If no server can accommodate the job, reject it
+    if (!bestServer) {
+      rejectedCount += 1;
       trace.push({
         action: 'reject',
-        message: `No server fits job ${job.id}`,
-        jobId: job.id,
-        highlightJobId: job.id,
+        message: `Job ${currentJob.id} rejected: exceeds node capacity constraints.`,
+        jobId: currentJob.id,
+        highlightJobId: currentJob.id,
         servers: snapshotServers(servers),
       });
       continue;
     }
 
-    const assignment = placeOnServer(best.server, job, serverCpu, serverMemory);
+    // STEP 3C: Place the job on the earliest-free server
+    const assignment = placeOnServer(bestServer, currentJob, serverCpu, serverMemory);
     assignments.push(assignment);
+
     trace.push({
       action: 'place',
-      message: `Place job ${job.id} on server ${best.server.id} (earliest free @ ${best.startTime})`,
-      jobId: job.id,
-      serverId: best.server.id,
+      message: `Assigned Job ${currentJob.id} to Server ${bestServer.id} [Start: ${assignment.startTime}, End: ${assignment.endTime})`,
+      jobId: currentJob.id,
+      serverId: bestServer.id,
       startTime: assignment.startTime,
       endTime: assignment.endTime,
-      highlightJobId: job.id,
+      highlightJobId: currentJob.id,
       servers: snapshotServers(servers),
     });
   }
 
-  const metrics = computeMetrics(assignments, jobs, servers, config, rejected);
-  trace.push({ action: 'done', message: 'SJF complete', metrics, servers: snapshotServers(servers) });
-  return { algorithm: 'sjf', assignments, metrics, trace };
+  // STEP 4: Compute final metrics
+  const metrics = computeMetrics(assignments, jobs, servers, config, rejectedCount);
+
+  trace.push({
+    action: 'done',
+    message: `SJF completed: ${metrics.jobsCompleted}/${jobs.length} completed, Avg Wait Time: ${metrics.averageWaitTime}`,
+    metrics,
+    servers: snapshotServers(servers),
+    highlightJobId: null,
+  });
+
+  return {
+    algorithm: 'sjf',
+    assignments,
+    metrics,
+    trace,
+  };
 }
 
 module.exports = { sjf };
