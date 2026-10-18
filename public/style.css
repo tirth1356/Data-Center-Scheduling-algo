@@ -44,6 +44,23 @@
   box-sizing: border-box;
 }
 
+/* Comprehensive removal of default browser spin buttons/steppers on number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
+  display: none !important;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
 body {
   margin: 0;
   font-family: var(--font-main);
