@@ -1,8 +1,15 @@
 /**
  * Data Center Workload Optimizer — Front-End Application Controller
- * Handles UI interactions, API requests, step-by-step trace animations,
- * Gantt timeline rendering, Knapsack 2D DP table visualizer,
- * Branch-and-bound search tree visualizer, comparison suite, and live complexity benchmark.
+ * Features:
+ * - Bespoke espresso black & warm beige theme
+ * - Step-by-step trace simulation with stable timeline horizon
+ * - Interactive Play/Pause with automatic replay on completion
+ * - Default 0.5x simulation speed
+ * - Live Job Manifest HUD (100% visibility for queued, running, and rejected jobs)
+ * - 0/1 Knapsack 2D DP Table Visualizer
+ * - Branch & Bound Search Tree with Pruning Counters
+ * - Side-by-side Comparative Table with Winner Trophies 🏆
+ * - Compact live benchmark chart
  */
 
 /** @type {Array<object>|null} */
@@ -42,6 +49,12 @@ const auxViz = document.getElementById('aux-viz');
 const auxTitle = document.getElementById('aux-title');
 const auxSubtitle = document.getElementById('aux-subtitle');
 
+// Job HUD elements
+const hudJobChips = document.getElementById('hud-job-chips');
+const hudWaitCount = document.getElementById('hud-wait-count');
+const hudRunCount = document.getElementById('hud-run-count');
+const hudRejCount = document.getElementById('hud-rej-count');
+
 const btnStepStart = document.getElementById('btn-step-start');
 const btnStepBack = document.getElementById('btn-step-back');
 const btnPlay = document.getElementById('btn-play');
@@ -51,20 +64,20 @@ const btnStepEnd = document.getElementById('btn-step-end');
 const speedRange = document.getElementById('speed-range');
 const speedLabel = document.getElementById('speed-label');
 
-let compareChart = null;
 let benchmarkChart = null;
 
+// Warm Earthy Theme Palette
 const COLORS = {
-  fcfs: '#38bdf8',
-  sjf: '#34d399',
-  deadlines: '#fbbf24',
-  knapsack: '#f472b6',
-  heap: '#a78bfa',
-  branchBound: '#fb923c',
+  fcfs: '#d4a373',
+  sjf: '#8a9a86',
+  deadlines: '#d99b43',
+  knapsack: '#c58f59',
+  heap: '#b8824f',
+  branchBound: '#c86d5e',
 };
 
 const ACTION_ICONS = {
-  init: '🚀',
+  init: '⚡',
   consider: '🔍',
   place: '⚙️',
   enqueue: '📥',
@@ -78,6 +91,20 @@ const ACTION_ICONS = {
   update_best: '🏆',
   done: '✅',
   error: '⚠️',
+};
+
+// Speed Mapping (Default 0.5x at index 2)
+const SPEED_MAP = {
+  1: { label: '0.25x', delay: 1200 },
+  2: { label: '0.5x', delay: 800 },   // DEFAULT
+  3: { label: '0.75x', delay: 550 },
+  4: { label: '1.0x', delay: 400 },
+  5: { label: '1.5x', delay: 260 },
+  6: { label: '2.0x', delay: 180 },
+  7: { label: '3.0x', delay: 120 },
+  8: { label: '5.0x', delay: 70 },
+  9: { label: '7.5x', delay: 40 },
+  10: { label: '10x', delay: 20 },
 };
 
 const PAIRS = [
@@ -181,6 +208,7 @@ function renderJobsTable(list) {
   jobCountBadge.textContent = `${list.length} jobs`;
   if (!list.length) {
     jobsTbody.innerHTML = '<tr class="empty-row"><td colspan="7">No jobs generated.</td></tr>';
+    renderJobHud([]);
     return;
   }
   for (const job of list) {
@@ -199,6 +227,7 @@ function renderJobsTable(list) {
     }
     jobsTbody.appendChild(tr);
   }
+  renderJobHud(list);
 }
 
 function readJobsFromTable() {
@@ -214,6 +243,75 @@ function readJobsFromTable() {
       priority: get('priority'),
     };
   });
+}
+
+function renderJobHud(list, step = null) {
+  if (!hudJobChips) return;
+  if (!list || !list.length) {
+    hudJobChips.innerHTML = '<span class="hint">No jobs in manifest.</span>';
+    hudWaitCount.textContent = 'Queued: 0';
+    hudRunCount.textContent = 'Scheduled: 0';
+    hudRejCount.textContent = 'Rejected: 0';
+    return;
+  }
+
+  // Find job states from current step
+  const scheduledMap = new Map();
+  const rejectedSet = new Set();
+  const activeJobId = step?.highlightJobId ?? null;
+
+  if (step?.servers) {
+    for (const s of step.servers) {
+      for (const b of s.timeline) {
+        scheduledMap.set(b.jobId, s.id);
+      }
+    }
+  }
+
+  // Look through previous steps up to stepIndex for rejections
+  if (trace && trace.length) {
+    const curIdx = Math.min(stepIndex, trace.length - 1);
+    for (let i = 0; i <= curIdx; i++) {
+      if (trace[i].action === 'reject' && trace[i].jobId != null) {
+        rejectedSet.add(trace[i].jobId);
+      }
+    }
+  }
+
+  let waitCount = 0;
+  let runCount = scheduledMap.size;
+  let rejCount = rejectedSet.size;
+
+  const chipsHtml = list.map((job) => {
+    const isScheduled = scheduledMap.has(job.id);
+    const isRejected = rejectedSet.has(job.id);
+    const isActive = activeJobId === job.id;
+
+    let statusClass = 'status-queued';
+    let statusText = 'Queued';
+
+    if (isActive) {
+      statusClass = 'status-active';
+      statusText = 'Active';
+    } else if (isScheduled) {
+      statusClass = 'status-scheduled';
+      statusText = `S${scheduledMap.get(job.id)}`;
+    } else if (isRejected) {
+      statusClass = 'status-rejected';
+      statusText = 'Dropped';
+    } else {
+      waitCount++;
+    }
+
+    return `<div class="job-hud-item ${statusClass}" title="Job ${job.id} | Arr: ${job.arrivalTime} | Dur: ${job.duration} | Prio: ${job.priority}">
+      <strong>J${job.id}</strong>: ${statusText}
+    </div>`;
+  }).join('');
+
+  hudJobChips.innerHTML = chipsHtml;
+  hudWaitCount.textContent = `Queued: ${list.length - runCount - rejCount}`;
+  hudRunCount.textContent = `Scheduled: ${runCount}`;
+  hudRejCount.textContent = `Rejected: ${rejCount}`;
 }
 
 function renderMetrics(result) {
@@ -262,6 +360,9 @@ function stopPlayback() {
     clearInterval(playTimer);
     playTimer = null;
   }
+  btnPlay.classList.remove('active');
+  btnPlay.textContent = '▶ Play';
+  btnPause.classList.remove('active');
 }
 
 function setAnimControlsEnabled(on) {
@@ -293,6 +394,7 @@ function renderStep() {
     stepIcon.textContent = '💡';
     serverViz.innerHTML = '<p class="hint empty-gantt">No trace data.</p>';
     auxViz.innerHTML = '';
+    renderJobHud(jobListForViz, null);
     return;
   }
   stepIndex = Math.max(0, Math.min(stepIndex, trace.length - 1));
@@ -308,6 +410,7 @@ function renderStep() {
   highlightJobRow(step.highlightJobId);
   renderServerViz(step);
   renderAuxViz(step);
+  renderJobHud(jobListForViz, step);
 
   if (step.action === 'done' && step.metrics) {
     renderMetrics({ ...lastResult, metrics: step.metrics });
@@ -328,11 +431,12 @@ function renderServerViz(step) {
     return;
   }
 
-  let horizon = 1;
+  // Stable Horizon: calculate from final result makespan so the timeline doesn't jump
+  let finalMakespan = lastResult?.metrics?.makespan || 0;
   for (const s of servers) {
-    for (const b of s.timeline) horizon = Math.max(horizon, b.endTime);
+    for (const b of s.timeline) finalMakespan = Math.max(finalMakespan, b.endTime);
   }
-  horizon = Math.max(horizon, ...servers.map((s) => s.freeTime || 0));
+  const horizon = Math.max(finalMakespan, 1);
 
   // Render timeline ruler ticks
   const tickStep = horizon <= 20 ? 2 : horizon <= 60 ? 5 : 10;
@@ -353,7 +457,7 @@ function renderServerViz(step) {
           activeJobsCount++;
           const job = jobListForViz.find((j) => j.id === b.jobId);
           const left = (b.startTime / horizon) * 100;
-          const width = Math.max(((b.endTime - b.startTime) / horizon) * 100, 1.2);
+          const width = Math.max(((b.endTime - b.startTime) / horizon) * 100, 2.5);
           const isCurrent = step.highlightJobId === b.jobId;
           const hl = isCurrent ? ' block-hl' : '';
           
@@ -416,7 +520,6 @@ function renderAuxViz(step) {
 }
 
 function renderKnapsackAux(step) {
-  const dpMeta = lastResult?.dpMeta || {};
   const grid = lastResult?.finalDp || [];
 
   let formula = 'DP[i][w] = max( DP[i-1][w], DP[i-1][w - cpu_i] + prio_i )';
@@ -517,36 +620,49 @@ function renderDeadlinesAux(step) {
   </div>`;
 }
 
-function playbackDelay() {
-  const speed = Number(speedRange.value);
-  return Math.max(30, 520 - speed * 48);
+function getDelayFromSlider() {
+  const val = Number(speedRange.value);
+  return SPEED_MAP[val]?.delay || 800;
 }
 
 speedRange.addEventListener('input', () => {
-  speedLabel.textContent = `${speedRange.value}x`;
+  const val = Number(speedRange.value);
+  const cfg = SPEED_MAP[val] || { label: '0.5x', delay: 800 };
+  speedLabel.textContent = cfg.label;
   if (playTimer) {
     stopPlayback();
     btnPlay.click();
   }
 });
 
+// Robust Play Button
 btnPlay.addEventListener('click', () => {
+  if (!trace.length) return;
+  // If at the end, restart from beginning
+  if (stepIndex >= trace.length - 1) {
+    stepIndex = 0;
+    renderStep();
+  }
+
   stopPlayback();
   btnPlay.classList.add('active');
+  btnPause.classList.remove('active');
+  btnPlay.textContent = '▶ Playing';
+
   playTimer = setInterval(() => {
     if (stepIndex >= trace.length - 1) {
       stopPlayback();
-      btnPlay.classList.remove('active');
       return;
     }
     stepIndex += 1;
     renderStep();
-  }, playbackDelay());
+  }, getDelayFromSlider());
 });
 
+// Robust Pause Button
 btnPause.addEventListener('click', () => {
   stopPlayback();
-  btnPlay.classList.remove('active');
+  btnPause.classList.add('active');
 });
 
 btnStepStart.addEventListener('click', () => {
@@ -689,46 +805,6 @@ function renderCompareTable(results) {
       .join('');
     return `<tr><th>${mk.label}</th>${cells}</tr>`;
   }).join('');
-
-  renderCompareChart(results, ids);
-}
-
-function renderCompareChart(results, ids) {
-  const ctx = document.getElementById('compare-chart');
-  if (compareChart) compareChart.destroy();
-
-  const labels = ['Total Priority', 'Completed Jobs', 'Utilization (%)', 'Efficiency'];
-  const datasets = ids
-    .filter((id) => !results[id].error && results[id].metrics)
-    .map((id) => {
-      const m = results[id].metrics;
-      return {
-        label: results[id].label,
-        backgroundColor: COLORS[id] || '#94a3b8',
-        data: [
-          m.totalPriority,
-          m.jobsCompleted,
-          Number((m.serverUtilization * 100).toFixed(1)),
-          m.energyEfficiency ?? 0,
-        ],
-      };
-    });
-
-  compareChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { labels: { color: '#cbd5e1' } },
-        tooltip: { backgroundColor: '#1e293b', titleColor: '#f8fafc', bodyColor: '#cbd5e1' },
-      },
-      scales: {
-        x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-        y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-      },
-    },
-  });
 }
 
 function renderComplexityTable() {
@@ -816,21 +892,21 @@ function renderBenchmarkChart(series, ns) {
     datasets.push({
       label: `${s.label} (Measured)`,
       data: points.map((p) => ({ x: p.n, y: p.runtimeMs })),
-      borderColor: COLORS[id] || '#94a3b8',
-      backgroundColor: COLORS[id] || '#94a3b8',
-      tension: 0.25,
-      pointRadius: 5,
-      pointHoverRadius: 7,
+      borderColor: COLORS[id] || '#d4a373',
+      backgroundColor: COLORS[id] || '#d4a373',
+      tension: 0.2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
     });
 
     // Scaled asymptotic theoretical curve
     datasets.push({
       label: `${s.label} (Theory O(${THEORY_MAP[id]}))`,
       data: ns.map((n) => ({ x: n, y: theoryCurve([n], THEORY_MAP[id] || 'n', scale)[0] })),
-      borderColor: COLORS[id] || '#94a3b8',
-      borderDash: [6, 4],
+      borderColor: COLORS[id] || '#d4a373',
+      borderDash: [5, 4],
       pointRadius: 0,
-      tension: 0.25,
+      tension: 0.2,
     });
   }
 
@@ -839,17 +915,23 @@ function renderBenchmarkChart(series, ns) {
     data: { datasets },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       parsing: false,
       plugins: {
         legend: {
           labels: {
-            color: '#cbd5e1',
+            color: '#d4c4b0',
+            boxWidth: 12,
+            font: { size: 11 },
             filter: (item) => !item.text.includes('Theory') || item.datasetIndex % 2 === 1,
           },
         },
         tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#f8fafc',
+          backgroundColor: '#1b1815',
+          titleColor: '#f5efe6',
+          bodyColor: '#d4c4b0',
+          borderColor: '#383028',
+          borderWidth: 1,
           callbacks: {
             label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw.y).toFixed(3)} ms (at n=${ctx.raw.x})`,
           },
@@ -858,14 +940,14 @@ function renderBenchmarkChart(series, ns) {
       scales: {
         x: {
           type: 'linear',
-          title: { display: true, text: 'Number of Jobs (n)', color: '#94a3b8' },
-          ticks: { color: '#94a3b8' },
-          grid: { color: '#1e293b' },
+          title: { display: true, text: 'Number of Jobs (n)', color: '#9c8e7c', font: { size: 11 } },
+          ticks: { color: '#9c8e7c' },
+          grid: { color: '#2b251f' },
         },
         y: {
-          title: { display: true, text: 'Execution Time (ms)', color: '#94a3b8' },
-          ticks: { color: '#94a3b8' },
-          grid: { color: '#1e293b' },
+          title: { display: true, text: 'Execution Time (ms)', color: '#9c8e7c', font: { size: 11 } },
+          ticks: { color: '#9c8e7c' },
+          grid: { color: '#2b251f' },
         },
       },
     },
@@ -881,6 +963,9 @@ async function initMeta() {
     .map((a) => `<option value="${a.id}">${a.label} (${a.maxN ? `max n=${a.maxN}` : ''})</option>`)
     .join('');
   renderComplexityTable();
+
+  // Set default speed label
+  speedLabel.textContent = SPEED_MAP[2].label; // '0.5x'
 
   // Auto-generate initial job set
   document.getElementById('btn-generate').click();

@@ -15,7 +15,7 @@
     <div class="header-inner">
       <div class="brand">
         <div class="brand-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
             <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
             <line x1="6" y1="6" x2="6.01" y2="6"></line>
@@ -203,8 +203,23 @@
 
         <div class="speed-control">
           <span class="ctrl-label">Speed</span>
-          <input type="range" id="speed-range" min="1" max="10" value="5" />
-          <span id="speed-label" class="speed-val">1x</span>
+          <input type="range" id="speed-range" min="1" max="10" value="2" />
+          <span id="speed-label" class="speed-val">0.5x</span>
+        </div>
+      </div>
+
+      <!-- Live Job Manifest (All Jobs Visible) -->
+      <div class="sim-job-status-hud" id="sim-job-hud">
+        <div class="hud-header">
+          <span class="hud-title">Workload Job Manifest & Real-Time Status</span>
+          <div class="hud-counts">
+            <span class="hud-chip waiting" id="hud-wait-count">Queued: 0</span>
+            <span class="hud-chip running" id="hud-run-count">Scheduled: 0</span>
+            <span class="hud-chip rejected" id="hud-rej-count">Rejected: 0</span>
+          </div>
+        </div>
+        <div class="hud-chips-wrap" id="hud-job-chips">
+          <span class="hint">Jobs will appear here when generated.</span>
         </div>
       </div>
 
@@ -219,9 +234,11 @@
             <span class="legend-item"><span class="legend-color p-active"></span> Current Decision</span>
           </div>
         </div>
-        <div id="gantt-timeline-ruler" class="timeline-ruler"></div>
-        <div id="server-viz" class="server-viz">
-          <p class="hint empty-gantt">Server allocations will appear here when an algorithm runs.</p>
+        <div class="gantt-scroll-container">
+          <div id="gantt-timeline-ruler" class="timeline-ruler"></div>
+          <div id="server-viz" class="server-viz">
+            <p class="hint empty-gantt">Server allocations will appear here when an algorithm runs.</p>
+          </div>
         </div>
       </div>
 
@@ -254,7 +271,7 @@
       </div>
     </section>
 
-    <!-- Algorithm Comparison Panel -->
+    <!-- Algorithm Comparison Panel (Table Only, Bar chart removed as requested) -->
     <section class="panel glass-card hidden" id="compare-panel" aria-labelledby="compare-heading">
       <div class="panel-header">
         <div>
@@ -268,13 +285,6 @@
           <thead></thead>
           <tbody></tbody>
         </table>
-      </div>
-
-      <div class="chart-box">
-        <div class="chart-header">
-          <h4>Multi-Metric Performance Radar / Bar Chart</h4>
-        </div>
-        <canvas id="compare-chart" height="120"></canvas>
       </div>
     </section>
 
@@ -309,7 +319,7 @@
       </div>
     </section>
 
-    <!-- Complexity Analysis & Live Benchmark Panel -->
+    <!-- Complexity Analysis & Live Benchmark Panel (Compact Chart) -->
     <section class="panel glass-card" aria-labelledby="complexity-heading">
       <div class="panel-header">
         <div>
@@ -334,9 +344,9 @@
 
       <div class="benchmark-suite">
         <div class="benchmark-header">
-          <span class="bench-title">Live Benchmark Generator: Measure runtime vs n</span>
+          <span class="bench-title">Live Benchmark Suite: Measure Runtime vs Jobs (n)</span>
           <div class="bench-n-picker">
-            <span class="hint">Select n values:</span>
+            <span class="hint">Select n:</span>
             <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="10" checked /> n=10</label>
             <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="20" checked /> n=20</label>
             <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="50" checked /> n=50</label>
@@ -348,12 +358,12 @@
           </div>
         </div>
 
-        <div class="chart-box tall">
+        <div class="chart-box compact-chart">
           <div class="chart-legend-note">
             <span>Solid lines = Measured wall-clock time (hrtime ms)</span>
             <span>Dashed lines = Asymptotic theoretical curve scaled to first point</span>
           </div>
-          <canvas id="benchmark-chart" height="240"></canvas>
+          <canvas id="benchmark-chart" height="130"></canvas>
         </div>
       </div>
     </section>
