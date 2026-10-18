@@ -1,29 +1,7 @@
 /**
- * ============================================================================
- * ALGORITHM 1: FIRST-COME FIRST-SERVED (FCFS) SCHEDULER
- * ============================================================================
- * 
- * DAA PARADIGM: Baseline Queue / Greedy by Arrival Time
- * 
- * TIME COMPLEXITY:  O(n log n + n * s)
- *   - Sorting jobs by arrival time takes O(n log n).
- *   - Iterating over n jobs and finding the earliest free server among s servers
- *     takes O(n * s).
- * 
- * SPACE COMPLEXITY: O(n + s)
- *   - Storing n job assignments and s server state timelines.
- * 
- * ----------------------------------------------------------------------------
- * HOW TO EXPLAIN TO YOUR TEACHER (VIVA NOTES):
- * ----------------------------------------------------------------------------
- * 1. "FCFS is our baseline non-preemptive scheduling policy."
- * 2. "Jobs are processed strictly in the order they arrive (arrival time)."
- * 3. "For each arriving job, we scan our servers to see if any server is idle
- *     at the job's arrival time. If an idle server is found, we schedule it there."
- * 4. "If all servers are currently busy, we pick the server that frees up earliest."
- * 5. "If a job requires more CPU or RAM than a single node possesses, it cannot run
- *     and is marked as rejected."
- * ============================================================================
+ * First-Come First-Served (FCFS) Workload Scheduler
+ * Processes jobs in arrival order, assigning each onto the first available server.
+ * Time Complexity: O(n log n + n * s) | Space Complexity: O(n + s)
  */
 
 const {
@@ -36,18 +14,17 @@ const {
 function fcfs(jobs, config) {
   const { numServers, serverCpu, serverMemory } = config;
 
-  // STEP 1: Sort jobs by arrival time (tie-breaker: job ID)
+  // Step 1: Sort jobs by arrival time (tie-breaker: job ID)
   const sortedJobs = [...jobs].sort(
     (a, b) => a.arrivalTime - b.arrivalTime || a.id - b.id
   );
 
-  // STEP 2: Initialize cluster server states
+  // Step 2: Initialize server states
   const servers = createServers(numServers);
   const assignments = [];
   const trace = [];
   let rejectedCount = 0;
 
-  // Record initial simulation step
   trace.push({
     action: 'init',
     message: `FCFS initialized with ${sortedJobs.length} jobs across ${numServers} server nodes.`,
@@ -55,7 +32,7 @@ function fcfs(jobs, config) {
     highlightJobId: null,
   });
 
-  // STEP 3: Iterate through jobs in strict arrival order
+  // Step 3: Iterate through jobs in arrival order
   for (const currentJob of sortedJobs) {
     trace.push({
       action: 'consider',
@@ -65,7 +42,7 @@ function fcfs(jobs, config) {
       servers: snapshotServers(servers),
     });
 
-    // STEP 3A: Validate if job fits within physical node limits
+    // Check if job exceeds server capacity
     if (currentJob.cpu > serverCpu || currentJob.memory > serverMemory) {
       rejectedCount += 1;
       trace.push({
@@ -78,17 +55,15 @@ function fcfs(jobs, config) {
       continue;
     }
 
-    // STEP 3B: Server Selection
-    // Priority 1: Check for an idle server at or before currentJob.arrivalTime
+    // Assign to first server with room at arrival time, or earliest freeing server
     let selectedServer = null;
     for (const server of servers) {
       if (server.freeTime <= currentJob.arrivalTime) {
         selectedServer = server;
-        break; // First server with room right now!
+        break;
       }
     }
 
-    // Priority 2: If all servers are busy, pick the one that finishes earliest
     if (!selectedServer) {
       selectedServer = servers.reduce((earliest, s) =>
         s.freeTime < earliest.freeTime ? s : earliest,
@@ -96,7 +71,7 @@ function fcfs(jobs, config) {
       );
     }
 
-    // STEP 3C: Place job on selected server
+    // Place job on selected server
     const assignment = placeOnServer(selectedServer, currentJob, serverCpu, serverMemory);
     assignments.push(assignment);
 
@@ -112,7 +87,7 @@ function fcfs(jobs, config) {
     });
   }
 
-  // STEP 4: Compute final datacenter performance & green metrics
+  // Step 4: Compute metrics
   const metrics = computeMetrics(assignments, sortedJobs, servers, config, rejectedCount);
 
   trace.push({

@@ -1,39 +1,7 @@
 /**
- * ============================================================================
- * ALGORITHM 6: EXACT BRANCH AND BOUND SCHEDULER (n <= 12)
- * ============================================================================
- * 
- * DAA PARADIGM: State-Space Tree Search (DFS) with Upper-Bound Pruning
- * 
- * TIME COMPLEXITY:
- *   - Worst-case: O(s^n) where s = servers and n = jobs.
- *     Every job can be assigned to any of the s servers or skipped.
- *   - Average / Pruned: Significantly faster than brute force because subtrees
- *     whose theoretical maximum cannot beat the current best solution are
- *     pruned immediately.
- * 
- * SPACE COMPLEXITY: O(n * s)
- *   - Maximum recursion stack depth is n, holding server state copies at each depth.
- * 
- * ----------------------------------------------------------------------------
- * HOW BRANCH AND BOUND PRUNING WORKS (FOR VIVA):
- * ----------------------------------------------------------------------------
- * 1. "We represent all possible server assignments as a State-Space Tree."
- * 2. "Each depth 'd' in the tree corresponds to making a decision for Job 'd'."
- * 3. "Branches from a node represent:"
- *      - Assign Job 'd' to Server 1
- *      - Assign Job 'd' to Server 2 ... Server 's'
- *      - Skip / Exclude Job 'd'
- * 4. "BOUNDING FUNCTION (Upper Bound):"
- *      Upper Bound = (Priority Accumulated So Far) + (Sum of ALL Remaining Priorities)
- *      - "This represents the absolute best-case priority achievable if EVERY
- *         remaining job in this branch could somehow be scheduled successfully."
- * 5. "PRUNING RULE (The 'Bound' Step):"
- *      If (Upper Bound <= Best Priority Found So Far):
- *          PRUNE THIS ENTIRE SUBTREE! (Cut the branch ✂️)
- *      - "Why? Because even in a perfect fantasy scenario, this branch can NEVER
- *         beat our existing best solution. Exploring it is guaranteed waste."
- * ============================================================================
+ * Exact Branch and Bound Scheduler (n <= 12)
+ * Explores assignment state space using Depth-First Search with upper-bound pruning.
+ * Time Complexity: O(s^n) worst-case | Space Complexity: O(n * s)
  */
 
 const {
@@ -47,7 +15,6 @@ function branchAndBound(jobs, config) {
   const { numServers, serverCpu, serverMemory } = config;
   const n = jobs.length;
 
-  // Branch and bound explores an exponential state space, so restrict to n <= 12
   if (n > 12) {
     return {
       algorithm: 'branchBound',
@@ -59,10 +26,10 @@ function branchAndBound(jobs, config) {
     };
   }
 
-  // STEP 1: Sort jobs by ID and precompute remaining suffix priority sums
+  // Step 1: Precompute remaining priority suffix sums
   const orderedJobs = [...jobs].sort((a, b) => a.id - b.id);
 
-  // remainingPriority[d] = sum of priorities from job d to job n - 1
+  // remainingPriority[d] = sum of priorities from job d to n - 1
   const remainingPriority = Array(n + 1).fill(0);
   for (let i = n - 1; i >= 0; i--) {
     remainingPriority[i] = remainingPriority[i + 1] + orderedJobs[i].priority;
@@ -83,9 +50,7 @@ function branchAndBound(jobs, config) {
     treeNodes: [],
   });
 
-  /**
-   * Bounding Function: Optimistic upper bound for the current branch.
-   */
+  // Calculate optimistic upper bound for the current branch
   function calculateUpperBound(currentPriority, currentDepth) {
     return currentPriority + remainingPriority[currentDepth];
   }
@@ -95,13 +60,11 @@ function branchAndBound(jobs, config) {
     if (trace.length < MAX_TRACE) trace.push(step);
   }
 
-  /**
-   * STEP 2: Depth-First Search (DFS) with Bounding
-   */
+  // Step 2: Depth-First Search (DFS) with Bounding
   function exploreStateSpace(depth, prioritySoFar, serverStates, currentAssignments, parentNodeId) {
     const optimisticUpperBound = calculateUpperBound(prioritySoFar, depth);
 
-    // PRUNING CHECK: Can this branch beat the best solution found so far?
+    // Prune branch if theoretical upper bound cannot beat best solution found so far
     if (optimisticUpperBound <= bestPriorityFound) {
       totalPrunedBranches += 1;
       treeNodes.push({
@@ -121,10 +84,10 @@ function branchAndBound(jobs, config) {
         servers: snapshotFromStates(serverStates),
         treeNodes: snapshotTree(treeNodes),
       });
-      return; // Stop exploring this branch!
+      return;
     }
 
-    // BASE CASE: Reached leaf node (all n jobs considered)
+    // Base case: all jobs considered
     if (depth === n) {
       if (prioritySoFar > bestPriorityFound) {
         bestPriorityFound = prioritySoFar;
@@ -142,7 +105,7 @@ function branchAndBound(jobs, config) {
       return;
     }
 
-    // RECURSIVE STEP: Branch on the current job
+    // Recursive step: branch on current job
     const currentJob = orderedJobs[depth];
     const currentNodeId = nextNodeId++;
 
@@ -165,7 +128,7 @@ function branchAndBound(jobs, config) {
       treeNodes: snapshotTree(treeNodes),
     });
 
-    // BRANCH OPTION 1: Try assigning currentJob to each server (1 to numServers)
+    // Branch 1: Try assigning currentJob to each server
     for (let serverIndex = 0; serverIndex < numServers; serverIndex++) {
       if (currentJob.cpu > serverCpu || currentJob.memory > serverMemory) continue;
 
@@ -174,7 +137,6 @@ function branchAndBound(jobs, config) {
       const endTime = startTime + currentJob.duration;
       const missedDeadline = endTime > currentJob.deadline;
 
-      // Deep copy server states for this child branch
       const nextServerStates = serverStates.map((s) => ({
         id: s.id,
         freeTime: s.freeTime,
@@ -204,7 +166,6 @@ function branchAndBound(jobs, config) {
         },
       ];
 
-      // Recurse into child branch
       exploreStateSpace(
         depth + 1,
         prioritySoFar + currentJob.priority,
@@ -214,7 +175,7 @@ function branchAndBound(jobs, config) {
       );
     }
 
-    // BRANCH OPTION 2: Skip / exclude currentJob entirely
+    // Branch 2: Exclude currentJob
     exploreStateSpace(
       depth + 1,
       prioritySoFar,
@@ -224,7 +185,7 @@ function branchAndBound(jobs, config) {
     );
   }
 
-  // STEP 3: Begin DFS exploration from root node
+  // Step 3: Run search from root node
   const initialServerStates = Array.from({ length: numServers }, (_, i) => ({
     id: i + 1,
     freeTime: 0,
@@ -233,7 +194,7 @@ function branchAndBound(jobs, config) {
 
   exploreStateSpace(0, 0, initialServerStates, [], -1);
 
-  // STEP 4: Build final schedule from best assignment found
+  // Step 4: Rebuild final schedule
   const jobsById = new Map(jobs.map((j) => [j.id, j]));
   const finalServers = rebuildServersFromAssignments(numServers, bestAssignments, jobsById);
   const rejectedCount = jobs.length - bestAssignments.length;
