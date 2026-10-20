@@ -1,3 +1,9 @@
+/**
+ * First-Come First-Served (FCFS) Workload Scheduler
+ * Processes jobs in arrival order, assigning each onto the first available server.
+ * Time Complexity: O(n log n + n * s) | Space Complexity: O(n + s)
+ */
+
 const {
   createServers,
   snapshotServers,
@@ -5,84 +11,77 @@ const {
   computeMetrics,
 } = require('./metrics');
 
-/**
- * FCFS: process jobs in arrival order; assign each to the first server with capacity.
- */
 function fcfs(jobs, config) {
   const { numServers, serverCpu, serverMemory } = config;
-  const sorted = [...jobs].sort((a, b) => a.arrivalTime - b.arrivalTime || a.id - b.id);
 
+  // Step 1: Sort jobs by arrival time (tie-breaker: job ID)
+  const sortedJobs = [...jobs].sort(
+    (a, b) => a.arrivalTime - b.arrivalTime || a.id - b.id
+  );
+
+  // Step 2: Initialize server states
   const servers = createServers(numServers);
-
-  const trace = [];
   const assignments = [];
-  let rejected = 0;
+  const trace = [];
+  let rejectedCount = 0;
 
   trace.push({
     action: 'init',
-    message: `FCFS: ${sorted.length} jobs, ${numServers} server(s), ${serverCpu} CPU / ${serverMemory} GB each`,
+    message: `FCFS initialized with ${sortedJobs.length} jobs across ${numServers} server nodes.`,
     servers: snapshotServers(servers),
     highlightJobId: null,
   });
 
-  for (const job of sorted) {
+  // Step 3: Iterate through jobs in arrival order
+  for (const currentJob of sortedJobs) {
     trace.push({
       action: 'consider',
-      message: `Consider job ${job.id} (arrival ${job.arrivalTime}, CPU ${job.cpu}, mem ${job.memory})`,
-      jobId: job.id,
-      highlightJobId: job.id,
+      message: `Evaluating Job ${currentJob.id} (Arrival: ${currentJob.arrivalTime}, CPU: ${currentJob.cpu}, RAM: ${currentJob.memory}GB)`,
+      jobId: currentJob.id,
+      highlightJobId: currentJob.id,
       servers: snapshotServers(servers),
     });
 
-    let placed = false;
-    for (const server of servers) {
-      if (job.cpu > serverCpu || job.memory > serverMemory) {
-        trace.push({
-          action: 'skip_server',
-          message: `Server ${server.id}: insufficient capacity for job ${job.id}`,
-          jobId: job.id,
-          serverId: server.id,
-          highlightJobId: job.id,
-          servers: snapshotServers(servers),
-        });
-        continue;
-      }
-
-      const assignment = placeOnServer(server, job, serverCpu, serverMemory);
-      assignments.push(assignment);
-
-      trace.push({
-        action: 'place',
-        message: `Place job ${job.id} on server ${server.id} [${assignment.startTime}, ${assignment.endTime})`,
-        jobId: job.id,
-        serverId: server.id,
-        startTime: assignment.startTime,
-        endTime: assignment.endTime,
-        highlightJobId: job.id,
-        servers: snapshotServers(servers),
-      });
-
-      placed = true;
-      break;
-    }
-
-    if (!placed) {
-      rejected += 1;
+    // Check if job exceeds server capacity
+    if (currentJob.cpu > serverCpu || currentJob.memory > serverMemory) {
+      rejectedCount += 1;
       trace.push({
         action: 'reject',
-        message: `No server can run job ${job.id}`,
-        jobId: job.id,
-        highlightJobId: job.id,
+        message: `Job ${currentJob.id} rejected: exceeds node limits (needs CPU ${currentJob.cpu}/${serverCpu}, RAM ${currentJob.memory}/${serverMemory}GB)`,
+        jobId: currentJob.id,
+        highlightJobId: currentJob.id,
         servers: snapshotServers(servers),
       });
+      continue;
     }
+
+    // Assign to server that can start this job earliest
+    const selectedServer = servers.reduce((best, s) =>
+      Math.max(s.freeTime, currentJob.arrivalTime) < Math.max(best.freeTime, currentJob.arrivalTime) ? s : best
+    );
+
+    // Place job on selected server
+    const assignment = placeOnServer(selectedServer, currentJob, serverCpu, serverMemory);
+    assignments.push(assignment);
+
+    trace.push({
+      action: 'place',
+      message: `Assigned Job ${currentJob.id} to Server ${selectedServer.id} [Start: ${assignment.startTime}, End: ${assignment.endTime})`,
+      jobId: currentJob.id,
+      serverId: selectedServer.id,
+      startTime: assignment.startTime,
+      endTime: assignment.endTime,
+      highlightJobId: currentJob.id,
+      servers: snapshotServers(servers),
+    });
   }
 
-  const metrics = computeMetrics(assignments, sorted, servers, config, rejected);
+  // Step 4: Compute metrics
+  const metrics = computeMetrics(assignments, sortedJobs, servers, config, rejectedCount);
 
   trace.push({
     action: 'done',
-    message: 'FCFS complete',
+    message: `FCFS scheduling complete: ${metrics.jobsCompleted}/${jobs.length} jobs scheduled.`,
     metrics,
     servers: snapshotServers(servers),
     highlightJobId: null,

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Center Workload Optimizer — DAA Project</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+        </div>
+        <div>
+          <h1>Data Center Workload Optimizer</h1>
+          <p class="subtitle">Design & Analysis of Algorithms — Multi-Server Job Scheduling & Live Complexity Suite</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Configuration Panel -->
+    <section class="panel glass-card" aria-labelledby="config-heading">
+      <div class="panel-header">
+        <h2 id="config-heading">Data Center & Workload Configuration</h2>
+        <div class="preset-buttons">
+          <span class="hint">Presets:</span>
+          <button type="button" class="btn-chip" id="preset-default">Balanced (n=15)</button>
+          <button type="button" class="btn-chip" id="preset-knapsack">DP Focus (n=12, C=16)</button>
+          <button type="button" class="btn-chip" id="preset-branch">Branch & Bound (n=8)</button>
+          <button type="button" class="btn-chip" id="preset-large">Stress Benchmark (n=80)</button>
+        </div>
+      </div>
+
+      <form id="config-form" class="config-grid">
+        <div class="field-card">
+          <div class="field-title">
+            <span>Number of jobs (n)</span>
+            <input type="number" id="n-input" min="5" max="200" value="15" required />
+          </div>
+          <input type="range" id="n-range" min="5" max="200" value="15" />
+          <span class="field-sub">Range: 5 to 200 jobs</span>
+        </div>
+
+        <div class="field-card">
+          <div class="field-title">
+            <span>Total CPU (cores)</span>
+            <input type="number" id="totalCpu-input" min="4" max="64" value="16" required />
+          </div>
+          <input type="range" id="totalCpu-range" min="4" max="64" value="16" />
+          <span class="field-sub">Cluster aggregate processing units</span>
+        </div>
+
+        <div class="field-card">
+          <div class="field-title">
+            <span>Total Memory (GB)</span>
+            <input type="number" id="totalMemory-input" min="8" max="256" value="64" required />
+          </div>
+          <input type="range" id="totalMemory-range" min="8" max="256" value="64" />
+          <span class="field-sub">RAM pooled across nodes</span>
+        </div>
+
+        <div class="field-card">
+          <div class="field-title">
+            <span>Server Nodes</span>
+            <input type="number" id="numServers-input" min="1" max="8" value="3" required />
+          </div>
+          <input type="range" id="numServers-range" min="1" max="8" value="3" />
+          <span class="field-sub">Homogeneous parallel physical machines</span>
+        </div>
+
+        <div class="field-card">
+          <div class="field-title">
+            <span>Random Seed</span>
+            <input type="number" id="seed-input" min="0" max="999999999" value="42" required />
+          </div>
+          <button type="button" class="btn-text" id="btn-random-seed">🎲 Randomize</button>
+          <span class="field-sub">Deterministic seed for fair comparison</span>
+        </div>
+
+        <details class="fieldset-card advanced-accordion">
+          <summary class="advanced-summary">
+            <span>⚙️ Advanced Job Attribute Ranges <small style="font-size:0.75rem; font-weight:normal; color:var(--text-muted); margin-left:0.5rem;">(Optional: Standard realistic defaults are active)</small></span>
+          </summary>
+          <div class="ranges-grid" style="margin-top: 0.85rem;">
+            <label class="field-compact">
+              <span>CPU (min–max)</span>
+              <div class="dual-inputs">
+                <input type="number" id="cpuMin-input" min="1" max="128" value="1" />
+                <span>–</span>
+                <input type="number" id="cpuMax-input" min="1" max="128" value="4" />
+              </div>
+            </label>
+            <label class="field-compact">
+              <span>Memory GB (min–max)</span>
+              <div class="dual-inputs">
+                <input type="number" id="memoryMin-input" min="1" max="512" value="2" />
+                <span>–</span>
+                <input type="number" id="memoryMax-input" min="1" max="512" value="8" />
+              </div>
+            </label>
+            <label class="field-compact">
+              <span>Duration (min–max)</span>
+              <div class="dual-inputs">
+                <input type="number" id="durationMin-input" min="1" max="100" value="2" />
+                <span>–</span>
+                <input type="number" id="durationMax-input" min="1" max="100" value="8" />
+              </div>
+            </label>
+            <label class="field-compact">
+              <span>Deadline offset (min–max)</span>
+              <div class="dual-inputs">
+                <input type="number" id="deadlineMin-input" min="1" max="500" value="5" />
+                <span>–</span>
+                <input type="number" id="deadlineMax-input" min="1" max="500" value="25" />
+              </div>
+            </label>
+            <label class="field-compact">
+              <span>Priority (min–max)</span>
+              <div class="dual-inputs">
+                <input type="number" id="priorityMin-input" min="1" max="10" value="1" />
+                <span>–</span>
+                <input type="number" id="priorityMax-input" min="1" max="10" value="10" />
+              </div>
+            </label>
+          </div>
+        </details>
+      </form>
+
+      <div class="actions-bar">
+        <button type="button" id="btn-generate" class="btn primary">
+          <span class="btn-icon">⚡</span> Generate Jobs
+        </button>
+
+        <div class="algo-picker">
+          <label for="algorithm-select" class="picker-label">Active Algorithm:</label>
+          <select id="algorithm-select"></select>
+        </div>
+
+        <button type="button" id="btn-run" class="btn accent" disabled>
+          <span class="btn-icon">▶</span> Run & Animate
+        </button>
+
+        <button type="button" id="btn-compare" class="btn outline" disabled>
+          <span class="btn-icon">⚖️</span> Compare All Algorithms
+        </button>
+      </div>
+
+      <div class="status-bar">
+        <p id="status-message" class="status" role="status">Ready. Click 'Generate jobs' to start.</p>
+        <p id="per-server-hint" class="hint"></p>
+      </div>
+    </section>
+
+    <!-- Simulation & Gantt View -->
+    <section class="panel glass-card" aria-labelledby="viz-heading">
+      <div class="panel-header">
+        <div>
+          <h2 id="viz-heading">Interactive Execution & Trace Simulation</h2>
+          <p class="section-desc">Watch algorithmic decisions unfold step by step with Gantt chart scheduling and internal data structures.</p>
+        </div>
+        <div id="step-badge-wrap">
+          <span id="step-action-badge" class="action-badge">Idle</span>
+          <span id="step-indicator" class="step-counter">Step 0 / 0</span>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-icon" id="step-icon">💡</div>
+        <div class="step-body">
+          <p id="step-caption" class="step-caption">Generate jobs and run an algorithm to start step-by-step playback.</p>
+        </div>
+      </div>
+
+      <!-- Scrubber & Controls -->
+      <div class="player-toolbar">
+        <div class="btn-group">
+          <button type="button" id="btn-step-start" class="btn player-btn" title="Restart from beginning" disabled>⏮</button>
+          <button type="button" id="btn-play" class="btn player-btn play-btn" title="Play animation" disabled>▶ Play</button>
+          <button type="button" id="btn-pause" class="btn player-btn" title="Pause" disabled>⏸ Pause</button>
+          <button type="button" id="btn-step-end" class="btn player-btn" title="Jump to end" disabled>⏭</button>
+        </div>
+
+        <div class="scrubber-wrap">
+          <input type="range" id="trace-scrubber" min="0" max="0" value="0" disabled />
+        </div>
+
+        <div class="speed-control">
+          <span class="ctrl-label">Speed</span>
+          <input type="range" id="speed-range" min="1" max="10" value="2" />
+          <span id="speed-label" class="speed-val">0.5x</span>
+        </div>
+      </div>
+
+      <!-- Live Job Manifest (All Jobs Visible) -->
+      <div class="sim-job-status-hud" id="sim-job-hud">
+        <div class="hud-header">
+          <span class="hud-title">Workload Job Manifest & Real-Time Status</span>
+          <div class="hud-counts">
+            <span class="hud-chip waiting" id="hud-wait-count">Queued: 0</span>
+            <span class="hud-chip running" id="hud-run-count">Scheduled: 0</span>
+            <span class="hud-chip rejected" id="hud-rej-count">Rejected: 0</span>
+          </div>
+        </div>
+        <div class="hud-chips-wrap" id="hud-job-chips">
+          <span class="hint">Jobs will appear here when generated.</span>
+        </div>
+      </div>
+
+      <!-- Server Gantt Visualization -->
+      <div class="gantt-section">
+        <div class="gantt-header">
+          <span class="gantt-title">Cluster Servers Timeline (Gantt Chart)</span>
+          <div class="gantt-legend">
+            <span class="legend-item"><span class="legend-color p-low"></span> Low Priority (1–3)</span>
+            <span class="legend-item"><span class="legend-color p-med"></span> Medium (4–7)</span>
+            <span class="legend-item"><span class="legend-color p-high"></span> High Priority (8–10)</span>
+            <span class="legend-item"><span class="legend-color p-active"></span> Current Decision</span>
+          </div>
+        </div>
+        <div class="gantt-scroll-container">
+          <div id="gantt-timeline-ruler" class="timeline-ruler"></div>
+          <div id="server-viz" class="server-viz">
+            <p class="hint empty-gantt">Server allocations will appear here when an algorithm runs.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auxiliary Data Structure Visualizer (Knapsack 2D DP Table / Branch & Bound Tree / Heaps) -->
+      <div id="aux-container" class="aux-container">
+        <div class="aux-header">
+          <h3 id="aux-title">Algorithm Internal State Visualizer</h3>
+          <span id="aux-subtitle" class="hint">DP Table / Search Tree / Priority Queue</span>
+        </div>
+        <div id="aux-viz" class="aux-viz">
+          <p class="hint empty-aux">Auxiliary algorithm views (0/1 Knapsack 2D Table, Branch-and-Bound DFS Tree) will render here.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Metrics & Results Section -->
+    <section class="panel glass-card" aria-labelledby="results-heading">
+      <div class="panel-header">
+        <h2 id="results-heading">Schedule Performance & Green Computing Metrics</h2>
+        <span class="hint">Includes novel data center energy and carbon footprint modeling</span>
+      </div>
+      <div id="metrics" class="metrics-grid">
+        <div class="metric-card placeholder-card"><span class="metric-label">Completed Jobs</span><span class="metric-value">—</span></div>
+        <div class="metric-card placeholder-card"><span class="metric-label">Total Priority Served</span><span class="metric-value">—</span></div>
+        <div class="metric-card placeholder-card"><span class="metric-label">Average Wait Time</span><span class="metric-value">—</span></div>
+        <div class="metric-card placeholder-card"><span class="metric-label">Server Utilization</span><span class="metric-value">—</span></div>
+        <div class="metric-card placeholder-card"><span class="metric-label">Deadline Misses</span><span class="metric-value">—</span></div>
+        <div class="metric-card placeholder-card"><span class="metric-label">Energy Consumed</span><span class="metric-value">—</span></div>
+        <div class="metric-card placeholder-card"><span class="metric-label">Green Efficiency</span><span class="metric-value">—</span></div>
+      </div>
+    </section>
+
+    <!-- Algorithm Comparison Panel (Table Only, Bar chart removed as requested) -->
+    <section class="panel glass-card hidden" id="compare-panel" aria-labelledby="compare-heading">
+      <div class="panel-header">
+        <div>
+          <h2 id="compare-heading">Side-by-Side Algorithm Comparison</h2>
+          <p class="section-desc">Evaluates all 6 algorithms on the exact same job dataset. Winners for each metric are marked with 🏆.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="compare-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+
+    <!-- Complexity Analysis & Live Benchmark Panel (Compact Chart) -->
+    <section class="panel glass-card" aria-labelledby="complexity-heading">
+      <div class="panel-header">
+        <div>
+          <h2 id="complexity-heading">Theoretical & Live Empirical Complexity Analysis</h2>
+          <p class="section-desc">Big-O asymptotic bounds compared against live server-side execution times across scaling inputs.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="complexity-table">
+          <thead>
+            <tr>
+              <th>Algorithm</th>
+              <th>Time Complexity</th>
+              <th>Space Complexity</th>
+              <th>DAA Design Paradigm & Mechanism</th>
+            </tr>
+          </thead>
+          <tbody id="complexity-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="benchmark-suite">
+        <div class="benchmark-header">
+          <span class="bench-title">Live Benchmark Suite: Measure Runtime vs Jobs (n)</span>
+          <div class="bench-n-picker">
+            <span class="hint">Select n:</span>
+            <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="10" checked /> n=10</label>
+            <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="20" checked /> n=20</label>
+            <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="50" checked /> n=50</label>
+            <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="100" checked /> n=100</label>
+            <label class="checkbox-chip"><input type="checkbox" class="bench-n" value="200" /> n=200</label>
+            <button type="button" id="btn-benchmark" class="btn primary">
+              <span class="btn-icon">🚀</span> Run Benchmark Suite
+            </button>
+          </div>
+        </div>
+
+        <div class="chart-box compact-chart">
+          <div class="chart-legend-note">
+            <span>Solid lines = Measured wall-clock time (hrtime ms)</span>
+            <span>Dashed lines = Asymptotic theoretical curve scaled to first point</span>
+          </div>
+          <canvas id="benchmark-chart"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Data Center Workload Optimizer — Design & Analysis of Algorithms Project</p>
+    <p class="footer-sub">Implemented with Vanilla JavaScript, Node.js, Express, and Chart.js</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

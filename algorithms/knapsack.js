@@ -1,3 +1,10 @@
+/**
+ * 0/1 Knapsack Dynamic Programming Scheduler
+ * Uses a 2D DP table over jobs and CPU capacity to maximize total priority,
+ * followed by backtracking to reconstruct the optimal subset.
+ * Time Complexity: O(n * C) | Space Complexity: O(n * C)
+ */
+
 const {
   createServers,
   snapshotServers,
@@ -5,19 +12,14 @@ const {
   computeMetrics,
 } = require('./metrics');
 
-/**
- * 0/1 Knapsack DP:
- * Uses a true 2D DP table: rows = job index (0..n), columns = capacity (0..W),
- * maximizing total priority within CPU and memory capacity.
- * Reconstructs the chosen set by backtracking through the table.
- */
 function knapsackSchedule(jobs, config) {
   const capCpu = config.totalCpu;
   const capMem = config.totalMemory;
   const { numServers, serverCpu, serverMemory } = config;
   const n = jobs.length;
 
-  // dp[i][w] = max priority using subset of jobs 1..i with CPU <= w
+  // Step 1: Initialize 2D DP table
+  // dp[i][w] = maximum priority using first i jobs with CPU capacity <= w
   const dp = Array.from({ length: n + 1 }, () => Array(capCpu + 1).fill(0));
   const dpMem = Array.from({ length: n + 1 }, () => Array(capCpu + 1).fill(0));
   const keep = Array.from({ length: n + 1 }, () => Array(capCpu + 1).fill(false));
@@ -27,110 +29,119 @@ function knapsackSchedule(jobs, config) {
 
   trace.push({
     action: 'init',
-    message: `0/1 Knapsack DP initialized: 2D table [jobs 0..${n}][capacity 0..${capCpu}], memory limit=${capMem}GB`,
+    message: `0/1 Knapsack DP initialized: 2D Table [Jobs 0..${n}][CPU Capacity 0..${capCpu}], Memory Limit = ${capMem}GB.`,
     servers: snapshotServers(servers),
     dpSize: { rows: n + 1, cols: capCpu + 1 },
     highlightJobId: null,
   });
 
+  // Step 2: Fill the DP table (Bottom-Up Tabulation)
   const MAX_DP_TRACE = 350;
   const shouldTraceEveryCell = (n * capCpu) <= 400;
 
   for (let i = 1; i <= n; i++) {
-    const job = jobs[i - 1];
+    const job = jobs[i - 1]; // Current job (0-indexed)
 
     for (let w = 0; w <= capCpu; w++) {
-      let bestVal = dp[i - 1][w];
-      let bestMem = dpMem[i - 1][w];
-      let took = false;
+      // Option A: Exclude job i (inherit value from previous row)
+      let bestPriority = dp[i - 1][w];
+      let bestMemory = dpMem[i - 1][w];
+      let tookJob = false;
 
+      // Option B: Include job i if it fits within CPU and RAM capacity
       if (job.cpu <= w) {
-        const remCpu = w - job.cpu;
-        const candMem = dpMem[i - 1][remCpu] + job.memory;
-        if (candMem <= capMem) {
-          const candVal = dp[i - 1][remCpu] + job.priority;
-          if (candVal > bestVal) {
-            bestVal = candVal;
-            bestMem = candMem;
-            took = true;
+        const remainingCapacity = w - job.cpu;
+        const candidateMemory = dpMem[i - 1][remainingCapacity] + job.memory;
+
+        if (candidateMemory <= capMem) {
+          const candidatePriority = dp[i - 1][remainingCapacity] + job.priority;
+
+          if (candidatePriority > bestPriority) {
+            bestPriority = candidatePriority;
+            bestMemory = candidateMemory;
+            tookJob = true;
           }
         }
       }
 
-      dp[i][w] = bestVal;
-      dpMem[i][w] = bestMem;
-      keep[i][w] = took;
+      dp[i][w] = bestPriority;
+      dpMem[i][w] = bestMemory;
+      keep[i][w] = tookJob;
 
-      if (trace.length < MAX_DP_TRACE && (shouldTraceEveryCell || took || w === capCpu)) {
+      if (trace.length < MAX_DP_TRACE && (shouldTraceEveryCell || tookJob || w === capCpu)) {
         trace.push({
           action: 'dp_fill',
-          message: took
-            ? `Cell [J${job.id}][cap ${w}]: TAKE Job ${job.id} (priority ${bestVal}, CPU ${job.cpu}, mem ${job.memory})`
-            : `Cell [J${job.id}][cap ${w}]: SKIP Job ${job.id} (keep ${bestVal})`,
+          message: tookJob
+            ? `DP[J${job.id}][cap ${w}] = ${bestPriority} (INCLUDED Job ${job.id}: +${job.priority} prio, CPU ${job.cpu}, RAM ${job.memory}GB)`
+            : `DP[J${job.id}][cap ${w}] = ${bestPriority} (EXCLUDED Job ${job.id})`,
           i,
           w,
-          value: bestVal,
-          took,
+          value: bestPriority,
+          took: tookJob,
           jobId: job.id,
-          highlightJobId: took ? job.id : null,
+          highlightJobId: tookJob ? job.id : null,
           servers: snapshotServers(servers),
         });
       }
     }
   }
 
-  // Backtracking to find chosen jobs
-  let curW = capCpu;
-  const chosen = [];
+  // Step 3: Backtrack from (n, capCpu) to find chosen jobs
+  let currentCapacity = capCpu;
+  const chosenJobs = [];
   const backtrackPath = [];
 
   for (let i = n; i >= 1; i--) {
-    backtrackPath.push({ i, w: curW, took: keep[i][curW] });
-    if (keep[i][curW]) {
+    backtrackPath.push({ i, w: currentCapacity, took: keep[i][currentCapacity] });
+
+    if (keep[i][currentCapacity]) {
       const job = jobs[i - 1];
-      chosen.push(job);
+      chosenJobs.push(job);
+
       trace.push({
         action: 'dp_backtrack',
-        message: `Backtrack: Job ${job.id} was TAKEN at capacity ${curW}. New remaining capacity = ${curW - job.cpu}`,
+        message: `Backtrack: Job ${job.id} was SELECTED (Prio ${job.priority}). Remaining capacity: ${currentCapacity} - ${job.cpu} = ${currentCapacity - job.cpu}`,
         i,
-        w: curW,
+        w: currentCapacity,
         jobId: job.id,
         highlightJobId: job.id,
         servers: snapshotServers(servers),
       });
-      curW -= job.cpu;
+
+      currentCapacity -= job.cpu;
     } else {
       trace.push({
         action: 'dp_backtrack',
-        message: `Backtrack: Job ${jobs[i - 1].id} was SKIPPED at capacity ${curW}`,
+        message: `Backtrack: Job ${jobs[i - 1].id} was SKIPPED. Capacity remains ${currentCapacity}`,
         i,
-        w: curW,
+        w: currentCapacity,
         jobId: jobs[i - 1].id,
         highlightJobId: null,
         servers: snapshotServers(servers),
       });
     }
   }
-  chosen.reverse();
+
+  chosenJobs.reverse();
 
   trace.push({
     action: 'knapsack_done',
-    message: `Knapsack optimal subset: ${chosen.length} of ${n} jobs (Total Priority: ${dp[n][capCpu]}, CPU used: ${capCpu - curW}/${capCpu})`,
-    chosenIds: chosen.map((j) => j.id),
+    message: `0/1 Knapsack Optimal Selection: ${chosenJobs.length} of ${n} jobs selected (Max Priority: ${dp[n][capCpu]}, CPU Used: ${capCpu - currentCapacity}/${capCpu})`,
+    chosenIds: chosenJobs.map((j) => j.id),
     highlightJobId: null,
     servers: snapshotServers(servers),
   });
 
-  // Schedule chosen jobs on servers (earliest-free placement)
+  // Step 4: Schedule chosen jobs on servers
   const assignments = [];
-  let rejected = jobs.length - chosen.length;
-  const chosenSet = new Set(chosen.map((j) => j.id));
+  let rejectedCount = jobs.length - chosenJobs.length;
+  const chosenJobIdSet = new Set(chosenJobs.map((j) => j.id));
 
   for (const job of jobs) {
-    if (!chosenSet.has(job.id)) {
+    if (!chosenJobIdSet.has(job.id)) {
       trace.push({
         action: 'reject',
-        message: `Job ${job.id} excluded by 0/1 knapsack optimal solution`,
+        message: `Job ${job.id} rejected: not in the optimal 0/1 knapsack subset.`,
         jobId: job.id,
         highlightJobId: job.id,
         servers: snapshotServers(servers),
@@ -138,47 +149,38 @@ function knapsackSchedule(jobs, config) {
     }
   }
 
-  const scheduleOrder = [...chosen].sort(
+  const scheduleOrder = [...chosenJobs].sort(
     (a, b) => a.arrivalTime - b.arrivalTime || b.priority - a.priority || a.id - b.id
   );
 
   for (const job of scheduleOrder) {
     trace.push({
       action: 'consider',
-      message: `Schedule chosen job ${job.id} (priority ${job.priority})`,
+      message: `Scheduling Knapsack-Selected Job ${job.id} (Priority ${job.priority})`,
       jobId: job.id,
       highlightJobId: job.id,
       servers: snapshotServers(servers),
     });
 
-    let best = null;
-    for (const server of servers) {
-      if (job.cpu > serverCpu || job.memory > serverMemory) continue;
-      const startTime = Math.max(job.arrivalTime, server.freeTime);
-      if (!best || startTime < best.startTime || (startTime === best.startTime && server.id < best.server.id)) {
-        best = { server, startTime };
-      }
-    }
-
-    if (!best) {
-      rejected += 1;
-      trace.push({
-        action: 'reject',
-        message: `Cannot place knapsack job ${job.id} on any server (exceeds per-server limits)`,
-        jobId: job.id,
-        highlightJobId: job.id,
-        servers: snapshotServers(servers),
-      });
+    if (job.cpu > serverCpu || job.memory > serverMemory) {
+      rejectedCount += 1;
       continue;
     }
 
-    const assignment = placeOnServer(best.server, job, serverCpu, serverMemory);
+    const bestServer = servers.reduce((best, s) => {
+      const startS = Math.max(job.arrivalTime, s.freeTime);
+      const startBest = Math.max(job.arrivalTime, best.freeTime);
+      return startS < startBest || (startS === startBest && s.id < best.id) ? s : best;
+    });
+
+    const assignment = placeOnServer(bestServer, job, serverCpu, serverMemory);
     assignments.push(assignment);
+
     trace.push({
       action: 'place',
-      message: `Place job ${job.id} on server ${best.server.id} [${assignment.startTime}, ${assignment.endTime})`,
+      message: `Assigned Job ${job.id} to Server ${bestServer.id} [${assignment.startTime}, ${assignment.endTime})`,
       jobId: job.id,
-      serverId: best.server.id,
+      serverId: bestServer.id,
       startTime: assignment.startTime,
       endTime: assignment.endTime,
       highlightJobId: job.id,
@@ -186,7 +188,7 @@ function knapsackSchedule(jobs, config) {
     });
   }
 
-  // Prepare table slice for UI visualization (max 24 columns, max 25 rows for clean display)
+  // Format table slice for UI visualization
   const displayCols = Math.min(capCpu + 1, 25);
   const displayRows = Math.min(n + 1, 26);
   const tableSlice = [];
@@ -194,10 +196,11 @@ function knapsackSchedule(jobs, config) {
     tableSlice.push(dp[r].slice(0, displayCols));
   }
 
-  const metrics = computeMetrics(assignments, jobs, servers, config, rejected);
+  const metrics = computeMetrics(assignments, jobs, servers, config, rejectedCount);
+
   trace.push({
     action: 'done',
-    message: '0/1 Knapsack scheduling completed',
+    message: `0/1 Knapsack scheduling complete: Total Priority = ${dp[n][capCpu]}`,
     metrics,
     servers: snapshotServers(servers),
     finalDp: tableSlice,
