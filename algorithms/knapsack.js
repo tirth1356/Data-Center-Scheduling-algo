@@ -162,28 +162,25 @@ function knapsackSchedule(jobs, config) {
       servers: snapshotServers(servers),
     });
 
-    let bestServer = null;
-    for (const server of servers) {
-      if (job.cpu > serverCpu || job.memory > serverMemory) continue;
-      const startTime = Math.max(job.arrivalTime, server.freeTime);
-      if (!bestServer || startTime < bestServer.startTime || (startTime === bestServer.startTime && server.id < bestServer.server.id)) {
-        bestServer = { server, startTime };
-      }
-    }
-
-    if (!bestServer) {
+    if (job.cpu > serverCpu || job.memory > serverMemory) {
       rejectedCount += 1;
       continue;
     }
 
-    const assignment = placeOnServer(bestServer.server, job, serverCpu, serverMemory);
+    const bestServer = servers.reduce((best, s) => {
+      const startS = Math.max(job.arrivalTime, s.freeTime);
+      const startBest = Math.max(job.arrivalTime, best.freeTime);
+      return startS < startBest || (startS === startBest && s.id < best.id) ? s : best;
+    });
+
+    const assignment = placeOnServer(bestServer, job, serverCpu, serverMemory);
     assignments.push(assignment);
 
     trace.push({
       action: 'place',
-      message: `Assigned Job ${job.id} to Server ${bestServer.server.id} [${assignment.startTime}, ${assignment.endTime})`,
+      message: `Assigned Job ${job.id} to Server ${bestServer.id} [${assignment.startTime}, ${assignment.endTime})`,
       jobId: job.id,
-      serverId: bestServer.server.id,
+      serverId: bestServer.id,
       startTime: assignment.startTime,
       endTime: assignment.endTime,
       highlightJobId: job.id,

@@ -173,21 +173,21 @@ document.getElementById('btn-random-seed')?.addEventListener('click', () => {
 
 function readConfigFromForm() {
   return {
-    n: clampInt(document.getElementById('n-input').value, 5, 200),
-    totalCpu: clampInt(document.getElementById('totalCpu-input').value, 4, 64),
-    totalMemory: clampInt(document.getElementById('totalMemory-input').value, 8, 256),
-    numServers: clampInt(document.getElementById('numServers-input').value, 1, 8),
-    seed: clampInt(document.getElementById('seed-input').value, 0, 999999999),
-    cpuMin: clampInt(document.getElementById('cpuMin-input').value, 1, 128),
-    cpuMax: clampInt(document.getElementById('cpuMax-input').value, 1, 128),
-    memoryMin: clampInt(document.getElementById('memoryMin-input').value, 1, 512),
-    memoryMax: clampInt(document.getElementById('memoryMax-input').value, 1, 512),
-    durationMin: clampInt(document.getElementById('durationMin-input').value, 1, 100),
-    durationMax: clampInt(document.getElementById('durationMax-input').value, 1, 100),
-    deadlineMin: clampInt(document.getElementById('deadlineMin-input').value, 1, 500),
-    deadlineMax: clampInt(document.getElementById('deadlineMax-input').value, 1, 500),
-    priorityMin: clampInt(document.getElementById('priorityMin-input').value, 1, 10),
-    priorityMax: clampInt(document.getElementById('priorityMax-input').value, 1, 10),
+    n: clampInt(document.getElementById('n-input')?.value || 15, 5, 200),
+    totalCpu: clampInt(document.getElementById('totalCpu-input')?.value || 16, 4, 64),
+    totalMemory: clampInt(document.getElementById('totalMemory-input')?.value || 64, 8, 256),
+    numServers: clampInt(document.getElementById('numServers-input')?.value || 3, 1, 8),
+    seed: clampInt(document.getElementById('seed-input')?.value || 42, 0, 999999999),
+    cpuMin: clampInt(document.getElementById('cpuMin-input')?.value || 1, 1, 128),
+    cpuMax: clampInt(document.getElementById('cpuMax-input')?.value || 4, 1, 128),
+    memoryMin: clampInt(document.getElementById('memoryMin-input')?.value || 2, 1, 512),
+    memoryMax: clampInt(document.getElementById('memoryMax-input')?.value || 8, 1, 512),
+    durationMin: clampInt(document.getElementById('durationMin-input')?.value || 2, 1, 100),
+    durationMax: clampInt(document.getElementById('durationMax-input')?.value || 8, 1, 100),
+    deadlineMin: clampInt(document.getElementById('deadlineMin-input')?.value || 5, 1, 500),
+    deadlineMax: clampInt(document.getElementById('deadlineMax-input')?.value || 25, 1, 500),
+    priorityMin: clampInt(document.getElementById('priorityMin-input')?.value || 1, 1, 10),
+    priorityMax: clampInt(document.getElementById('priorityMax-input')?.value || 10, 1, 10),
   };
 }
 

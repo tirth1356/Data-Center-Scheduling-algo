@@ -24,9 +24,7 @@ class SlotUnionFind {
   // Find root with path compression
   find(x) {
     if (x < 0) return -1;
-    if (this.parent[x] === x) return x;
-    this.parent[x] = this.find(this.parent[x]);
-    return this.parent[x];
+    return this.parent[x] === x ? x : (this.parent[x] = this.find(this.parent[x]));
   }
 
   // Mark slots [start, start + duration) as occupied

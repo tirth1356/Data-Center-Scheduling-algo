@@ -42,26 +42,8 @@ function sjf(jobs, config) {
       servers: snapshotServers(servers),
     });
 
-    // Find the server that becomes available earliest
-    let bestServer = null;
-    let earliestStartTime = Infinity;
-
-    for (const server of servers) {
-      if (currentJob.cpu > serverCpu || currentJob.memory > serverMemory) {
-        continue;
-      }
-
-      const possibleStartTime = Math.max(currentJob.arrivalTime, server.freeTime);
-
-      if (possibleStartTime < earliestStartTime) {
-        earliestStartTime = possibleStartTime;
-        bestServer = server;
-      } else if (possibleStartTime === earliestStartTime && (!bestServer || server.id < bestServer.id)) {
-        bestServer = server;
-      }
-    }
-
-    if (!bestServer) {
+    // Check capacity limit
+    if (currentJob.cpu > serverCpu || currentJob.memory > serverMemory) {
       rejectedCount += 1;
       trace.push({
         action: 'reject',
@@ -72,6 +54,13 @@ function sjf(jobs, config) {
       });
       continue;
     }
+
+    // Pick server that can start this job earliest (tie-breaker: lower server ID)
+    const bestServer = servers.reduce((best, s) => {
+      const startS = Math.max(s.freeTime, currentJob.arrivalTime);
+      const startBest = Math.max(best.freeTime, currentJob.arrivalTime);
+      return startS < startBest || (startS === startBest && s.id < best.id) ? s : best;
+    });
 
     // Place job on best server
     const assignment = placeOnServer(bestServer, currentJob, serverCpu, serverMemory);

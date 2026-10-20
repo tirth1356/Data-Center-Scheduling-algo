@@ -12,12 +12,13 @@ const {
 } = require('./metrics');
 
 /**
- * Binary Max-Heap (Highest priority element at root index 0)
+ * Binary Priority Queue (Heap)
+ * Generic binary heap implementation: compare(a, b) returns true if 'a' has higher priority than 'b'.
  */
-class MaxHeap {
-  constructor(compareFunction) {
+class PriorityQueue {
+  constructor(compare) {
     this.data = [];
-    this.compare = compareFunction;
+    this.compare = compare;
   }
 
   get size() {
@@ -26,120 +27,34 @@ class MaxHeap {
 
   push(item) {
     this.data.push(item);
-    this.bubbleUp(this.data.length - 1);
+    let i = this.data.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (!this.compare(this.data[i], this.data[p])) break;
+      [this.data[i], this.data[p]] = [this.data[p], this.data[i]];
+      i = p;
+    }
   }
 
   pop() {
     if (this.data.length === 0) return undefined;
-    const topElement = this.data[0];
-    const lastElement = this.data.pop();
-
+    const top = this.data[0];
+    const last = this.data.pop();
     if (this.data.length > 0) {
-      this.data[0] = lastElement;
-      this.bubbleDown(0);
-    }
-    return topElement;
-  }
-
-  bubbleUp(index) {
-    while (index > 0) {
-      const parentIndex = (index - 1) >> 1; // (index - 1) / 2
-
-      if (this.compare(this.data[index], this.data[parentIndex]) <= 0) {
-        break;
+      this.data[0] = last;
+      let i = 0;
+      while (true) {
+        let best = i;
+        const left = 2 * i + 1;
+        const right = 2 * i + 2;
+        if (left < this.data.length && this.compare(this.data[left], this.data[best])) best = left;
+        if (right < this.data.length && this.compare(this.data[right], this.data[best])) best = right;
+        if (best === i) break;
+        [this.data[i], this.data[best]] = [this.data[best], this.data[i]];
+        i = best;
       }
-
-      [this.data[index], this.data[parentIndex]] = [this.data[parentIndex], this.data[index]];
-      index = parentIndex;
     }
-  }
-
-  bubbleDown(index) {
-    const totalElements = this.data.length;
-
-    while (true) {
-      let largest = index;
-      const leftChild = 2 * index + 1;
-      const rightChild = 2 * index + 2;
-
-      if (leftChild < totalElements && this.compare(this.data[leftChild], this.data[largest]) > 0) {
-        largest = leftChild;
-      }
-      if (rightChild < totalElements && this.compare(this.data[rightChild], this.data[largest]) > 0) {
-        largest = rightChild;
-      }
-
-      if (largest === index) break;
-
-      [this.data[index], this.data[largest]] = [this.data[largest], this.data[index]];
-      index = largest;
-    }
-  }
-}
-
-/**
- * Binary Min-Heap (Lowest value at root index 0)
- */
-class MinHeap {
-  constructor(compareFunction) {
-    this.data = [];
-    this.compare = compareFunction;
-  }
-
-  get size() {
-    return this.data.length;
-  }
-
-  push(item) {
-    this.data.push(item);
-    this.bubbleUp(this.data.length - 1);
-  }
-
-  pop() {
-    if (this.data.length === 0) return undefined;
-    const topElement = this.data[0];
-    const lastElement = this.data.pop();
-
-    if (this.data.length > 0) {
-      this.data[0] = lastElement;
-      this.bubbleDown(0);
-    }
-    return topElement;
-  }
-
-  bubbleUp(index) {
-    while (index > 0) {
-      const parentIndex = (index - 1) >> 1;
-
-      if (this.compare(this.data[index], this.data[parentIndex]) >= 0) {
-        break;
-      }
-
-      [this.data[index], this.data[parentIndex]] = [this.data[parentIndex], this.data[index]];
-      index = parentIndex;
-    }
-  }
-
-  bubbleDown(index) {
-    const totalElements = this.data.length;
-
-    while (true) {
-      let smallest = index;
-      const leftChild = 2 * index + 1;
-      const rightChild = 2 * index + 2;
-
-      if (leftChild < totalElements && this.compare(this.data[leftChild], this.data[smallest]) < 0) {
-        smallest = leftChild;
-      }
-      if (rightChild < totalElements && this.compare(this.data[rightChild], this.data[smallest]) < 0) {
-        smallest = rightChild;
-      }
-
-      if (smallest === index) break;
-
-      [this.data[index], this.data[smallest]] = [this.data[smallest], this.data[index]];
-      index = smallest;
-    }
+    return top;
   }
 }
 
@@ -147,17 +62,15 @@ function heapPriority(jobs, config) {
   const { numServers, serverCpu, serverMemory } = config;
 
   // Step 1: Initialize dual heaps
-  // Max-Heap for jobs (by priority)
-  const jobMaxHeap = new MaxHeap((a, b) => {
-    if (b.priority !== a.priority) return b.priority - a.priority;
-    return a.arrivalTime - b.arrivalTime || a.id - b.id;
-  });
+  // Max-Heap for ready jobs: highest priority first (tie-breaker: earlier arrival)
+  const jobMaxHeap = new PriorityQueue((a, b) =>
+    a.priority !== b.priority ? a.priority > b.priority : a.arrivalTime < b.arrivalTime || a.id < b.id
+  );
 
-  // Min-Heap for servers (by earliest free time)
-  const serverMinHeap = new MinHeap((a, b) => {
-    if (a.freeTime !== b.freeTime) return a.freeTime - b.freeTime;
-    return a.id - b.id;
-  });
+  // Min-Heap for servers: earliest freeTime first (tie-breaker: lower server ID)
+  const serverMinHeap = new PriorityQueue((a, b) =>
+    a.freeTime !== b.freeTime ? a.freeTime < b.freeTime : a.id < b.id
+  );
 
   const servers = createServers(numServers);
   for (const s of servers) {

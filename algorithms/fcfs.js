@@ -55,21 +55,10 @@ function fcfs(jobs, config) {
       continue;
     }
 
-    // Assign to first server with room at arrival time, or earliest freeing server
-    let selectedServer = null;
-    for (const server of servers) {
-      if (server.freeTime <= currentJob.arrivalTime) {
-        selectedServer = server;
-        break;
-      }
-    }
-
-    if (!selectedServer) {
-      selectedServer = servers.reduce((earliest, s) =>
-        s.freeTime < earliest.freeTime ? s : earliest,
-        servers[0]
-      );
-    }
+    // Assign to server that can start this job earliest
+    const selectedServer = servers.reduce((best, s) =>
+      Math.max(s.freeTime, currentJob.arrivalTime) < Math.max(best.freeTime, currentJob.arrivalTime) ? s : best
+    );
 
     // Place job on selected server
     const assignment = placeOnServer(selectedServer, currentJob, serverCpu, serverMemory);

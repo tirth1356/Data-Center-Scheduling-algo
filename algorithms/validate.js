@@ -1,23 +1,24 @@
 const ALGORITHMS = ['fcfs'];
 
-function validateGenerateBody(body) {
+function validateGenerateBody(body = {}) {
   const errors = [];
-  const n = num(body.n, 'n', errors, 5, 200);
-  const totalCpu = num(body.totalCpu, 'totalCpu', errors, 1, 512);
-  const totalMemory = num(body.totalMemory, 'totalMemory', errors, 1, 2048);
-  const numServers = num(body.numServers, 'numServers', errors, 1, 8);
-  const seed = num(body.seed, 'seed', errors, 0, 999999999);
+  const n = num(body.n ?? 15, 'n', errors, 5, 200);
+  const totalCpu = num(body.totalCpu ?? 16, 'totalCpu', errors, 1, 512);
+  const totalMemory = num(body.totalMemory ?? 64, 'totalMemory', errors, 1, 2048);
+  const numServers = num(body.numServers ?? 3, 'numServers', errors, 1, 8);
+  const seed = num(body.seed ?? 42, 'seed', errors, 0, 999999999);
 
-  const cpuMin = num(body.cpuMin, 'cpuMin', errors, 1, 128);
-  const cpuMax = num(body.cpuMax, 'cpuMax', errors, 1, 128);
-  const memoryMin = num(body.memoryMin, 'memoryMin', errors, 1, 512);
-  const memoryMax = num(body.memoryMax, 'memoryMax', errors, 1, 512);
-  const durationMin = num(body.durationMin, 'durationMin', errors, 1, 100);
-  const durationMax = num(body.durationMax, 'durationMax', errors, 1, 100);
-  const deadlineMin = num(body.deadlineMin, 'deadlineMin', errors, 1, 500);
-  const deadlineMax = num(body.deadlineMax, 'deadlineMax', errors, 1, 500);
-  const priorityMin = num(body.priorityMin, 'priorityMin', errors, 1, 10);
-  const priorityMax = num(body.priorityMax, 'priorityMax', errors, 1, 10);
+  // Job generation attribute ranges with realistic standard defaults
+  const cpuMin = num(body.cpuMin ?? 1, 'cpuMin', errors, 1, 128);
+  const cpuMax = num(body.cpuMax ?? 4, 'cpuMax', errors, 1, 128);
+  const memoryMin = num(body.memoryMin ?? 2, 'memoryMin', errors, 1, 512);
+  const memoryMax = num(body.memoryMax ?? 8, 'memoryMax', errors, 1, 512);
+  const durationMin = num(body.durationMin ?? 2, 'durationMin', errors, 1, 100);
+  const durationMax = num(body.durationMax ?? 8, 'durationMax', errors, 1, 100);
+  const deadlineMin = num(body.deadlineMin ?? 5, 'deadlineMin', errors, 1, 500);
+  const deadlineMax = num(body.deadlineMax ?? 25, 'deadlineMax', errors, 1, 500);
+  const priorityMin = num(body.priorityMin ?? 1, 'priorityMin', errors, 1, 10);
+  const priorityMax = num(body.priorityMax ?? 10, 'priorityMax', errors, 1, 10);
 
   if (cpuMin > cpuMax) errors.push('cpuMin must be ≤ cpuMax');
   if (memoryMin > memoryMax) errors.push('memoryMin must be ≤ memoryMax');

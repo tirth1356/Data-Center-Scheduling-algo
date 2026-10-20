@@ -128,54 +128,46 @@ function branchAndBound(jobs, config) {
       treeNodes: snapshotTree(treeNodes),
     });
 
-    // Branch 1: Try assigning currentJob to each server
-    for (let serverIndex = 0; serverIndex < numServers; serverIndex++) {
-      if (currentJob.cpu > serverCpu || currentJob.memory > serverMemory) continue;
+    // Branch 1: Try assigning currentJob to each server (if it fits node limits)
+    if (currentJob.cpu <= serverCpu && currentJob.memory <= serverMemory) {
+      for (let serverIndex = 0; serverIndex < numServers; serverIndex++) {
+        const serverState = serverStates[serverIndex];
+        const startTime = Math.max(currentJob.arrivalTime, serverState.freeTime);
+        const endTime = startTime + currentJob.duration;
 
-      const serverState = serverStates[serverIndex];
-      const startTime = Math.max(currentJob.arrivalTime, serverState.freeTime);
-      const endTime = startTime + currentJob.duration;
-      const missedDeadline = endTime > currentJob.deadline;
-
-      const nextServerStates = serverStates.map((s) => ({
-        id: s.id,
-        freeTime: s.freeTime,
-        timeline: s.timeline.map((t) => ({ ...t })),
-      }));
-
-      const targetServer = nextServerStates[serverIndex];
-      targetServer.freeTime = endTime;
-      targetServer.timeline.push({
-        jobId: currentJob.id,
-        startTime,
-        endTime,
-        cpu: currentJob.cpu,
-        memory: currentJob.memory,
-      });
-
-      const nextAssignments = [
-        ...currentAssignments,
-        {
+        const nextServerStates = snapshotFromStates(serverStates);
+        const targetServer = nextServerStates[serverIndex];
+        targetServer.freeTime = endTime;
+        targetServer.timeline.push({
           jobId: currentJob.id,
-          serverId: targetServer.id,
           startTime,
           endTime,
-          waitTime: startTime - currentJob.arrivalTime,
-          missedDeadline,
-          priority: currentJob.priority,
-        },
-      ];
+          cpu: currentJob.cpu,
+          memory: currentJob.memory,
+        });
 
-      exploreStateSpace(
-        depth + 1,
-        prioritySoFar + currentJob.priority,
-        nextServerStates,
-        nextAssignments,
-        currentNodeId
-      );
+        exploreStateSpace(
+          depth + 1,
+          prioritySoFar + currentJob.priority,
+          nextServerStates,
+          [
+            ...currentAssignments,
+            {
+              jobId: currentJob.id,
+              serverId: targetServer.id,
+              startTime,
+              endTime,
+              waitTime: startTime - currentJob.arrivalTime,
+              missedDeadline: endTime > currentJob.deadline,
+              priority: currentJob.priority,
+            },
+          ],
+          currentNodeId
+        );
+      }
     }
 
-    // Branch 2: Exclude currentJob
+    // Branch 2: Exclude currentJob (pruning decision)
     exploreStateSpace(
       depth + 1,
       prioritySoFar,
