@@ -43,15 +43,13 @@ DAA/
 │   ├── fcfs.js               # Algorithm 1: First-Come First-Served baseline
 │   ├── sjf.js                # Algorithm 2: Greedy Shortest-Job-First
 │   ├── deadlines.js          # Algorithm 3: Job Sequencing with Deadlines (Disjoint-Set)
-│   ├── knapsack.js           # Algorithm 4: 0/1 Knapsack DP (2D Table & Backtracking)
-│   ├── heapScheduler.js      # Algorithm 5: Dual-Heap Priority Queue Engine
-│   └── branchBound.js        # Algorithm 6: Exact Branch & Bound Search Tree (n ≤ 12)
+│   └── knapsack.js           # Algorithm 4: 0/1 Knapsack DP (2D Table & Backtracking)
 ├── public/
 │   ├── index.html            # Semantic HTML5 UI shell with glassmorphism layout
 │   ├── app.js                # Interactive simulation player, scrubber & Chart.js logic
 │   └── style.css             # Rich dark theme, animations, and Gantt styling
 └── scripts/
-    └── smoke.js              # Command-line test runner verifying all 6 algorithms
+    └── smoke.js              # Command-line test runner verifying all 4 algorithms
 ```
 
 ---
@@ -64,9 +62,6 @@ DAA/
 | **Greedy SJF** | Greedy | $O(n \log n + n \cdot s)$ | $O(n + s)$ | Sorts jobs by ascending duration; places each job on the server that frees earliest to minimize average wait time. |
 | **Job Sequencing with Deadlines** | Greedy + Disjoint Set | $O(n \log n + n \cdot s \cdot D)$ | $O(s \cdot D)$ | Sorts jobs descending by priority; uses path-compressed Union-Find (`find(slot)`) on a discrete timeline to find the latest available slot $\le$ deadline in $O(\alpha(D))$ time. |
 | **0/1 Knapsack DP** | Dynamic Programming | $O(n \cdot C)$ | $O(n \cdot C)$ | True 2D DP matrix ($i \times w$) over CPU capacity and jobs. $DP[i][w] = \max(DP[i-1][w], DP[i-1][w - c_i] + p_i)$ with memory verification, followed by backtracking to reconstruct the optimal job subset. |
-| **Heap Priority Queue** | Priority Queues | $O(n \log n)$ | $O(n + s)$ | Dual-heap architecture: extracts highest priority jobs via Max-Heap while assigning to earliest free servers via Min-Heap. |
-| **Branch & Bound** | State Space Tree Search | $O(s^n)$ worst-case | $O(n \cdot s)$ | Depth-First search exploring job assignments (for $n \le 12$). Prunes any branch whose upper bound ($\text{PrioritySoFar} + \sum \text{RemainingPriority}$) cannot beat $\text{BestPriority}$. |
-
 *Notation: $n$ = number of jobs, $s$ = number of server nodes, $D$ = maximum deadline horizon, $C$ = total CPU capacity.*
 
 ---
@@ -87,7 +82,7 @@ To fulfill the course evaluation **"Novel Idea"** criterion, this application im
 
 1. **Configuration & Presets:**
    - Sliders and synchronized number inputs for job count ($n$), cluster CPU, cluster RAM, node count, and ranges.
-   - 1-Click Presets: **Balanced (n=15)**, **DP Focus (n=12)**, **Branch & Bound (n=8)**, and **Stress Benchmark (n=80)**.
+   - 1-Click Presets: **Balanced (n=15)**, **DP Focus (n=12)**, and **Stress Benchmark (n=80)**.
    - Deterministic random seed ensures reproducible inputs across algorithm comparisons.
 2. **Interactive Gantt Timeline:**
    - Multi-server visual timeline with tick ruler and real-time node busy percentages.
@@ -99,8 +94,6 @@ To fulfill the course evaluation **"Novel Idea"** criterion, this application im
    - Speed multiplier slider ($1\times$ to $10\times$).
 4. **Internal Algorithm Visualizers:**
    - **0/1 Knapsack:** Animated 2D DP matrix showing cell-by-cell filling, mathematical recurrence formula, taken cells in green, and the backtracking path in glowing amber.
-   - **Branch and Bound:** Visual DFS search tree showing branch nodes, current best solution, and greyed-out/marked pruned branches (✂).
-   - **Heap Scheduler:** Dual-heap state breakdown.
 5. **Comparison Engine:**
    - Executes all algorithms on the identical job pool with one click.
    - Side-by-side metric table highlighting the winning algorithm for each metric with a trophy 🏆.
@@ -115,7 +108,7 @@ To fulfill the course evaluation **"Novel Idea"** criterion, this application im
 
 ## 🧪 Testing
 
-Run the automated test script to verify all six algorithms:
+Run the automated test script to verify all four algorithms:
 ```bash
 node scripts/smoke.js
 ```
@@ -125,8 +118,6 @@ fcfs ok completed=10 trace=22
 sjf ok completed=10 trace=22
 deadlines ok completed=8 trace=22
 knapsack ok completed=9 trace=202
-heap ok completed=10 trace=32
-branchBound ok completed=10 trace=43
 ```
 
 ---

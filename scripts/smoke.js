@@ -21,7 +21,7 @@ const p = {
 const jobs = generateJobs(p);
 const config = { ...p, serverCpu: 8, serverMemory: 32 };
 
-for (const id of ['fcfs', 'sjf', 'deadlines', 'knapsack', 'heap', 'branchBound']) {
+for (const id of ['fcfs', 'sjf', 'deadlines', 'knapsack']) {
   const r = runAlgorithm(id, jobs, config);
   console.log(
     id,

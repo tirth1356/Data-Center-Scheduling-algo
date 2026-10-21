@@ -7,7 +7,6 @@
  * - Default 0.5x simulation speed
  * - Live Job Manifest HUD (100% visibility for queued, running, and rejected jobs)
  * - 0/1 Knapsack 2D DP Table Visualizer
- * - Branch & Bound Search Tree with Pruning Counters
  * - Side-by-side Comparative Table with Winner Trophies 🏆
  * - Compact live benchmark chart
  */
@@ -72,8 +71,6 @@ const COLORS = {
   sjf: '#8a9a86',
   deadlines: '#d99b43',
   knapsack: '#c58f59',
-  heap: '#b8824f',
-  branchBound: '#c86d5e',
 };
 
 const ACTION_ICONS = {
@@ -86,8 +83,6 @@ const ACTION_ICONS = {
   dp_row: '📋',
   dp_backtrack: '🔙',
   knapsack_done: '✨',
-  branch: '🌿',
-  prune: '✂️',
   update_best: '🏆',
   done: '✅',
   error: '⚠️',
@@ -145,7 +140,6 @@ PAIRS.forEach(([name, min, max]) => bindRangePair(name, min, max));
 const PRESETS = {
   default: { n: 15, totalCpu: 16, totalMemory: 64, numServers: 3, seed: 42 },
   knapsack: { n: 12, totalCpu: 16, totalMemory: 48, numServers: 2, seed: 101 },
-  branch: { n: 8, totalCpu: 16, totalMemory: 48, numServers: 2, seed: 77 },
   large: { n: 80, totalCpu: 32, totalMemory: 128, numServers: 4, seed: 555 },
 };
 
@@ -162,7 +156,6 @@ function applyPreset(p) {
 
 document.getElementById('preset-default')?.addEventListener('click', () => applyPreset(PRESETS.default));
 document.getElementById('preset-knapsack')?.addEventListener('click', () => applyPreset(PRESETS.knapsack));
-document.getElementById('preset-branch')?.addEventListener('click', () => applyPreset(PRESETS.branch));
 document.getElementById('preset-large')?.addEventListener('click', () => applyPreset(PRESETS.large));
 
 document.getElementById('btn-random-seed')?.addEventListener('click', () => {
@@ -335,9 +328,6 @@ function renderMetrics(result) {
     ['Green efficiency', `${m.energyEfficiency ?? '—'} prio/kWh`, 'Eco-workload optimization'],
     ['Runtime (wall-clock)', `${(result.runtimeMs ?? 0).toFixed(3)} ms`, 'Measured server compute'],
   ];
-  if (result.pruneCount != null) {
-    cards.push(['B&B branches pruned', String(result.pruneCount), 'Subtrees cut by upper bound']);
-  }
   metricsEl.innerHTML = cards
     .map(
       ([label, value, sub]) =>
@@ -504,14 +494,6 @@ function renderAuxViz(step) {
     auxTitle.textContent = '0/1 Knapsack Dynamic Programming Matrix';
     auxSubtitle.textContent = 'Rows = Jobs, Columns = CPU Capacity, Values = Max Priority';
     renderKnapsackAux(step);
-  } else if (currentAlgo === 'branchBound') {
-    auxTitle.textContent = 'Branch & Bound DFS Assignment Search Tree';
-    auxSubtitle.textContent = 'Depth-First Exploration with Upper-Bound Pruning';
-    renderBranchBoundAux(step);
-  } else if (currentAlgo === 'heap') {
-    auxTitle.textContent = 'Dual Heap Priority Engine';
-    auxSubtitle.textContent = 'Max-Heap (Jobs by Priority) + Min-Heap (Servers by Free Time)';
-    renderHeapAux(step);
   } else if (currentAlgo === 'deadlines') {
     auxTitle.textContent = 'Disjoint-Set (Union-Find) Slot Allocation';
     auxSubtitle.textContent = 'Finds latest available slot before job deadline';
@@ -577,46 +559,6 @@ function renderKnapsackAux(step) {
   }
 
   auxViz.innerHTML = html;
-}
-
-function renderBranchBoundAux(step) {
-  const nodes = step.treeNodes || (lastResult?.trace && lastResult.trace[lastResult.trace.length - 1]?.treeNodes) || [];
-  const pruneCount = step.pruneCount ?? lastResult?.pruneCount ?? 0;
-
-  let html = `<div class="bb-container">
-    <div class="bb-stats-bar">
-      <div class="bb-stat"><span>✂️ Subtrees Pruned:</span> <span class="bb-stat-val">${pruneCount}</span></div>
-      <div class="bb-stat"><span>Upper Bound:</span> <span class="bb-stat-val">PrioritySoFar + RemPrio ≤ Best</span></div>
-    </div>
-    <div class="bb-tree-scroll">`;
-
-  if (!nodes.length) {
-    html += '<p class="hint">Search tree will expand during branch-and-bound traversal.</p>';
-  } else {
-    html += nodes
-      .map((n) => {
-        let pillClass = n.pruned ? 'pruned' : 'active';
-        if (n.label?.includes('best') || n.label?.includes('🏆')) pillClass = 'best';
-        const indent = Math.min(n.depth * 18, 300);
-        return `<div class="bb-node-row" style="padding-left:${indent}px">
-          <span class="bb-node-pill ${pillClass}">
-            ${n.pruned ? '✂ ' : ''}${n.label}
-          </span>
-          <span class="bb-node-action">${n.pruned ? 'Branch pruned (bound cannot beat best)' : ''}</span>
-        </div>`;
-      })
-      .join('');
-  }
-  html += '</div></div>';
-  auxViz.innerHTML = html;
-}
-
-function renderHeapAux(step) {
-  auxViz.innerHTML = `<div class="dp-formula-banner">
-    <div><strong>Dual Heap Architecture:</strong></div>
-    <div>1. <strong>Job Priority Queue:</strong> Max-Heap extracting highest priority ready job.</div>
-    <div>2. <strong>Server Availability Queue:</strong> Min-Heap extracting earliest available server node.</div>
-  </div>`;
 }
 
 function renderDeadlinesAux(step) {
@@ -850,7 +792,7 @@ function theoryCurve(ns, kind, scale) {
         y = x * 16;
         break;
       case 'exp':
-        y = Math.pow(2, Math.min(x, 15));
+        y = Math.pow(2, x);
         break;
       default:
         y = x;
@@ -864,8 +806,6 @@ const THEORY_MAP = {
   sjf: 'nlogn',
   deadlines: 'n2',
   knapsack: 'ncm',
-  heap: 'nlogn',
-  branchBound: 'exp',
 };
 
 // Benchmark runner
@@ -951,13 +891,15 @@ function renderBenchmarkChart(series, ns) {
         x: {
           type: 'linear',
           title: { display: true, text: 'Number of Jobs (n)', color: '#9c8e7c', font: { size: 11 } },
-          ticks: { color: '#9c8e7c' },
+          ticks: { color: '#9c8e7c', beginAtZero: true },
           grid: { color: '#2b251f' },
+          beginAtZero: true,
         },
         y: {
           title: { display: true, text: 'Execution Time (ms)', color: '#9c8e7c', font: { size: 11 } },
-          ticks: { color: '#9c8e7c' },
+          ticks: { color: '#9c8e7c', beginAtZero: true },
           grid: { color: '#2b251f' },
+          beginAtZero: true,
         },
       },
     },

@@ -2,16 +2,11 @@ const { fcfs } = require('./fcfs');
 const { sjf } = require('./sjf');
 const { jobSequencingDeadlines } = require('./deadlines');
 const { knapsackSchedule } = require('./knapsack');
-const { heapPriority } = require('./heapScheduler');
-const { branchAndBound } = require('./branchBound');
-
 const ALGORITHMS = {
   fcfs: { fn: fcfs, label: 'FCFS', maxN: 200 },
   sjf: { fn: sjf, label: 'Greedy SJF', maxN: 200 },
   deadlines: { fn: jobSequencingDeadlines, label: 'Job sequencing (deadlines)', maxN: 200 },
   knapsack: { fn: knapsackSchedule, label: '0/1 Knapsack DP', maxN: 80 },
-  heap: { fn: heapPriority, label: 'Heap priority queue', maxN: 200 },
-  branchBound: { fn: branchAndBound, label: 'Branch & bound', maxN: 12 },
 };
 
 const COMPLEXITY = [
@@ -38,18 +33,6 @@ const COMPLEXITY = [
     time: 'O(n · C)',
     space: 'O(n · C)',
     note: '2D DP table over jobs and CPU capacity C with memory validation, plus backtracking.',
-  },
-  {
-    id: 'heap',
-    time: 'O(n log n)',
-    space: 'O(n + s)',
-    note: 'Heap operations for job priority and server availability.',
-  },
-  {
-    id: 'branchBound',
-    time: 'O(sⁿ) worst case',
-    space: 'O(n · s)',
-    note: 'DFS assignment tree; pruning cuts branches with weak upper bound.',
   },
 ];
 
