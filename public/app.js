@@ -681,6 +681,7 @@ btnRun.addEventListener('click', async () => {
     if (result.error) throw new Error(result.error);
     renderMetrics(result);
     loadTrace(result);
+    btnPlay.click(); // Auto-start animation after algorithm runs
     setStatus(`Finished ${algo} execution in ${(result.runtimeMs ?? 0).toFixed(3)} ms.`);
   } catch (e) {
     setStatus(e.message, true);
